@@ -1,6 +1,6 @@
 'use client';
 
-// Value Stream Mapping workspace: Learn -> Collect Data -> Map -> Action Plan
+// VSM Buddy: map library + per-map workspace (Learn -> Collect Data -> Map -> Action Plan)
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -8,8 +8,7 @@ import {
     ClipboardList,
     GitBranch,
     ListChecks,
-    Sparkles,
-    Trash2,
+    ChevronLeft,
     Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -17,11 +16,21 @@ import { VsmGuide } from '@/components/vsm/vsm-guide';
 import { VsmDataForm } from '@/components/vsm/vsm-data-form';
 import { VsmCanvas } from '@/components/vsm/vsm-canvas';
 import { VsmActionPlan } from '@/components/vsm/vsm-action-plan';
-import { ValueStream, calcMetrics, emptyStream, SAMPLE_STREAM } from '@/lib/vsm';
+import { VsmLibrary } from '@/components/vsm/vsm-library';
+import { VsmBuddyLogo } from '@/components/vsm/vsm-buddy-logo';
+import {
+    ValueStream,
+    calcMetrics,
+    emptyStream,
+    duplicateStream,
+    streamFromJson,
+    loadLibrary,
+    saveLibrary,
+    SAMPLE_STREAM,
+    newId,
+} from '@/lib/vsm';
 
 type Tab = 'learn' | 'data' | 'map' | 'plan';
-
-const STORAGE_KEY = 'sfg-vsm-stream-v1';
 
 const TABS: { id: Tab; label: string; icon: typeof BookOpen; hint: string }[] = [
     { id: 'learn', label: '1 · Learn', icon: BookOpen, hint: 'What to collect & how' },
@@ -31,63 +40,112 @@ const TABS: { id: Tab; label: string; icon: typeof BookOpen; hint: string }[] = 
 ];
 
 export default function ValueStreamPage() {
+    const [streams, setStreams] = useState<ValueStream[]>([]);
+    const [activeId, setActiveId] = useState<string | null>(null);
     const [tab, setTab] = useState<Tab>('learn');
-    const [stream, setStream] = useState<ValueStream>(emptyStream());
     const [loaded, setLoaded] = useState(false);
     const [saved, setSaved] = useState(false);
 
-    // Load once on mount, deferred so hydration completes before swapping in the saved stream
+    // Load library once on mount, deferred so hydration completes first
     useEffect(() => {
         const t = setTimeout(() => {
-            try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (raw) {
-                    setStream({ ...emptyStream(), ...JSON.parse(raw) });
-                    setTab('data');
-                }
-            } catch {
-                // corrupted save - start fresh
-            }
+            setStreams(loadLibrary());
             setLoaded(true);
         }, 0);
         return () => clearTimeout(t);
     }, []);
 
-    // Autosave (debounced)
+    // Brand the browser tab while on this page
+    useEffect(() => {
+        const prev = document.title;
+        document.title = 'VSM Buddy - Value Stream Mapping';
+        return () => {
+            document.title = prev;
+        };
+    }, []);
+
+    // Autosave the whole library (debounced)
     useEffect(() => {
         if (!loaded) return;
         const t = setTimeout(() => {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(stream));
+            saveLibrary(streams);
             setSaved(true);
             setTimeout(() => setSaved(false), 1500);
         }, 600);
         return () => clearTimeout(t);
-    }, [stream, loaded]);
+    }, [streams, loaded]);
 
-    const metrics = useMemo(() => calcMetrics(stream), [stream]);
-    const hasSteps = stream.steps.length > 0;
+    const active = streams.find((s) => s.id === activeId) ?? null;
+    const metrics = useMemo(() => (active ? calcMetrics(active) : null), [active]);
+    const hasSteps = (active?.steps.length ?? 0) > 0;
+
+    const updateActive = (next: ValueStream) =>
+        setStreams((prev) => prev.map((s) => (s.id === next.id ? { ...next, updatedAt: Date.now() } : s)));
+
+    const openMap = (id: string) => {
+        setActiveId(id);
+        const s = streams.find((x) => x.id === id);
+        setTab(s && s.steps.length > 0 ? 'map' : 'data');
+    };
+
+    const newMap = () => {
+        const s = emptyStream();
+        setStreams((prev) => [...prev, s]);
+        setActiveId(s.id);
+        setTab(streams.length === 0 ? 'learn' : 'data');
+    };
 
     const loadSample = () => {
-        setStream(structuredClone(SAMPLE_STREAM));
+        const s = { ...structuredClone(SAMPLE_STREAM), id: newId(), updatedAt: Date.now() };
+        setStreams((prev) => [...prev, s]);
+        setActiveId(s.id);
         setTab('data');
     };
 
-    const clearAll = () => {
-        if (!confirm('Clear the current value stream? This cannot be undone.')) return;
-        setStream(emptyStream());
-        localStorage.removeItem(STORAGE_KEY);
+    const duplicate = (id: string, asFutureState: boolean) => {
+        const src = streams.find((s) => s.id === id);
+        if (!src) return;
+        const copy = duplicateStream(src, asFutureState);
+        setStreams((prev) => [...prev, copy]);
+        setActiveId(copy.id);
         setTab('data');
+    };
+
+    const deleteMap = (id: string) => {
+        const s = streams.find((x) => x.id === id);
+        if (!confirm(`Delete "${s?.name || 'this map'}"? This cannot be undone.`)) return;
+        setStreams((prev) => prev.filter((x) => x.id !== id));
+        if (activeId === id) setActiveId(null);
+    };
+
+    const importMap = async (file: File) => {
+        try {
+            const stream = streamFromJson(await file.text());
+            setStreams((prev) => [...prev, stream]);
+            setActiveId(stream.id);
+            setTab('map');
+        } catch {
+            alert('That file is not a VSM Buddy map export (.json).');
+        }
     };
 
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-neutral-900">Value Stream Mapping</h1>
-                    <p className="text-sm text-neutral-500 mt-1">
-                        Learn the method, collect the data, draw the map, and get a step-by-step improvement plan.
-                    </p>
+                <div className="flex items-center gap-4">
+                    <VsmBuddyLogo size={52} />
+                    <div>
+                        <h1 className="text-2xl font-bold text-neutral-900">
+                            VSM Buddy
+                            <span className="ml-2 text-sm font-medium text-neutral-400 align-middle">by AI² Solutions</span>
+                        </h1>
+                        <p className="text-sm text-neutral-500 mt-1">
+                            {active
+                                ? `${active.name || 'Untitled map'}${active.client ? ` · ${active.client}` : ''}`
+                                : 'Map an organisation one value stream at a time - learn, measure, map, improve.'}
+                        </p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {saved && (
@@ -95,102 +153,110 @@ export default function ValueStreamPage() {
                             <Check size={14} /> Saved
                         </span>
                     )}
-                    <Button variant="secondary" size="sm" icon={<Sparkles size={14} />} onClick={loadSample}>
-                        Load sample
-                    </Button>
-                    {hasSteps && (
-                        <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={clearAll}>
-                            Clear
+                    {active && (
+                        <Button variant="secondary" size="sm" icon={<ChevronLeft size={14} />} onClick={() => setActiveId(null)}>
+                            All maps
                         </Button>
                     )}
                 </div>
             </div>
 
-            {/* Tab bar */}
-            <div className="bg-white rounded-xl border border-neutral-200 p-1.5 flex flex-col sm:flex-row gap-1">
-                {TABS.map((t) => {
-                    const active = tab === t.id;
-                    const needsData = (t.id === 'map' || t.id === 'plan') && !hasSteps;
-                    return (
-                        <button
-                            key={t.id}
-                            onClick={() => setTab(t.id)}
-                            className={`flex-1 flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors
-                                ${active ? 'bg-primary-600 text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-50'}`}
-                        >
-                            <t.icon size={18} className={active ? 'text-white' : 'text-neutral-400'} />
-                            <span className="min-w-0">
-                                <span className="block text-sm font-semibold leading-tight">{t.label}</span>
-                                <span className={`block text-[11px] leading-tight truncate ${active ? 'text-primary-100' : 'text-neutral-400'}`}>
-                                    {needsData ? 'Add data first' : t.hint}
-                                </span>
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* Content */}
-            {tab === 'learn' && (
-                <div className="space-y-4">
-                    <VsmGuide />
-                    <div className="flex justify-end">
-                        <Button onClick={() => setTab('data')}>Start collecting data →</Button>
-                    </div>
-                </div>
+            {/* Library view */}
+            {!active && loaded && (
+                <VsmLibrary
+                    streams={streams}
+                    onOpen={openMap}
+                    onNew={newMap}
+                    onLoadSample={loadSample}
+                    onDuplicate={duplicate}
+                    onDelete={deleteMap}
+                    onImport={importMap}
+                />
             )}
 
-            {tab === 'data' && (
-                <div className="space-y-4">
-                    <VsmDataForm stream={stream} metrics={metrics} onChange={setStream} />
-                    {hasSteps && (
-                        <div className="flex justify-end">
-                            <Button onClick={() => setTab('map')}>Draw the map →</Button>
+            {/* Workspace view */}
+            {active && metrics && (
+                <>
+                    <div className="bg-white rounded-xl border border-neutral-200 p-1.5 flex flex-col sm:flex-row gap-1">
+                        {TABS.map((t) => {
+                            const isActive = tab === t.id;
+                            const needsData = (t.id === 'map' || t.id === 'plan') && !hasSteps;
+                            return (
+                                <button
+                                    key={t.id}
+                                    onClick={() => setTab(t.id)}
+                                    className={`flex-1 flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors
+                                        ${isActive ? 'bg-primary-600 text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                                >
+                                    <t.icon size={18} className={isActive ? 'text-white' : 'text-neutral-400'} />
+                                    <span className="min-w-0">
+                                        <span className="block text-sm font-semibold leading-tight">{t.label}</span>
+                                        <span className={`block text-[11px] leading-tight truncate ${isActive ? 'text-primary-100' : 'text-neutral-400'}`}>
+                                            {needsData ? 'Add data first' : t.hint}
+                                        </span>
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {tab === 'learn' && (
+                        <div className="space-y-4">
+                            <VsmGuide />
+                            <div className="flex justify-end">
+                                <Button onClick={() => setTab('data')}>Start collecting data →</Button>
+                            </div>
                         </div>
                     )}
-                </div>
-            )}
 
-            {tab === 'map' &&
-                (hasSteps ? (
-                    <div className="space-y-4">
-                        <VsmCanvas
-                            stream={stream}
-                            metrics={metrics}
-                            onPositionsChange={(positions) => setStream({ ...stream, positions })}
-                        />
-                        <div className="flex justify-end">
-                            <Button onClick={() => setTab('plan')}>Build the action plan →</Button>
+                    {tab === 'data' && (
+                        <div className="space-y-4">
+                            <VsmDataForm stream={active} metrics={metrics} onChange={updateActive} />
+                            {hasSteps && (
+                                <div className="flex justify-end">
+                                    <Button onClick={() => setTab('map')}>Draw the map →</Button>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                ) : (
-                    <EmptyPrompt onLoad={loadSample} onData={() => setTab('data')} />
-                ))}
+                    )}
 
-            {tab === 'plan' &&
-                (hasSteps ? (
-                    <VsmActionPlan stream={stream} metrics={metrics} />
-                ) : (
-                    <EmptyPrompt onLoad={loadSample} onData={() => setTab('data')} />
-                ))}
+                    {tab === 'map' &&
+                        (hasSteps ? (
+                            <div className="space-y-4">
+                                <VsmCanvas
+                                    stream={active}
+                                    metrics={metrics}
+                                    onPositionsChange={(positions) => updateActive({ ...active, positions })}
+                                />
+                                <div className="flex justify-end">
+                                    <Button onClick={() => setTab('plan')}>Build the action plan →</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <EmptyPrompt onData={() => setTab('data')} />
+                        ))}
+
+                    {tab === 'plan' &&
+                        (hasSteps ? (
+                            <VsmActionPlan stream={active} metrics={metrics} />
+                        ) : (
+                            <EmptyPrompt onData={() => setTab('data')} />
+                        ))}
+                </>
+            )}
         </div>
     );
 }
 
-function EmptyPrompt({ onLoad, onData }: { onLoad: () => void; onData: () => void }) {
+function EmptyPrompt({ onData }: { onData: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-dashed border-neutral-300">
             <GitBranch size={36} className="text-neutral-300 mb-3" />
             <h3 className="font-semibold text-neutral-900 mb-1">No process steps yet</h3>
             <p className="text-sm text-neutral-500 mb-5 max-w-sm">
-                Add the steps of your process in the Collect Data tab, or load the worked example to see how it all fits together.
+                Add the steps of your process in the Collect Data tab and the map will draw itself.
             </p>
-            <div className="flex gap-2">
-                <Button onClick={onData}>Collect data</Button>
-                <Button variant="secondary" icon={<Sparkles size={14} />} onClick={onLoad}>
-                    Load sample
-                </Button>
-            </div>
+            <Button onClick={onData}>Collect data</Button>
         </div>
     );
 }

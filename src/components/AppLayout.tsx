@@ -167,7 +167,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                             Improvement
                         </div>
                         {[
-                            { name: 'Value Stream Map', href: '/value-stream', icon: GitBranch },
+                            { name: 'VSM Buddy', href: '/value-stream', icon: GitBranch },
                         ].map((item) => {
                             const isActive = pathname?.startsWith(item.href);
                             return (

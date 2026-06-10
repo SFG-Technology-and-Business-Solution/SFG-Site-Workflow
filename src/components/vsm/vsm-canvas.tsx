@@ -269,8 +269,15 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
 
                     <rect width={width} height={height} fill="#fafafa" />
                     <text x={20} y={26} fontSize="15" fontWeight={700} fill="#0f172a">
-                        {stream.name || 'Current-State Value Stream Map'}
+                        {stream.name || 'Value Stream Map'}
                         {stream.productFamily ? `  -  ${stream.productFamily}` : ''}
+                        <tspan fontSize="11" fontWeight={500} fill={stream.mapType === 'future' ? '#7c3aed' : '#64748b'}>
+                            {'   '}{stream.mapType === 'future' ? 'FUTURE STATE' : 'CURRENT STATE'}
+                            {stream.client ? `  ·  ${stream.client}` : ''}
+                        </tspan>
+                    </text>
+                    <text x={width - 16} y={height - 12} textAnchor="end" fontSize="10" fill="#94a3b8">
+                        Made with VSM Buddy · AI² Solutions
                     </text>
 
                     {/* Information flow (dashed) */}
@@ -295,7 +302,8 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
                             // start/end at box edges rather than centres
                             const b = chain[i + 1];
                             const x1 = i === 0 ? a.x : a.x + STEP_W / 2;
-                            const x2 = i === chain.length - 2 ? b.x : b.x - STEP_W / 2 - (steps[i]?.inventoryBefore ? 56 : 0);
+                            // stop short of the target step's inventory triangle when it has one
+                            const x2 = i === chain.length - 2 ? b.x : b.x - STEP_W / 2 - (orderedSteps[i]?.inventoryBefore ? 56 : 0);
                             return (
                                 <line
                                     key={`mat-${i}`}

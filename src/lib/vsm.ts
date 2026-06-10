@@ -14,6 +14,11 @@ export interface VsmProcessStep {
 }
 
 export interface ValueStream {
+    id: string;
+    client: string;            // organisation / client this map belongs to
+    area: string;              // department / business area
+    mapType: 'current' | 'future';
+    updatedAt: number;
     name: string;
     productFamily: string;
     customerName: string;
@@ -353,6 +358,66 @@ export function downloadFile(filename: string, content: string, mime: string) {
 }
 
 // ============================================
+// MAP LIBRARY (localStorage persistence)
+// ============================================
+
+const LIBRARY_KEY = 'sfg-vsm-library-v1';
+const LEGACY_KEY = 'sfg-vsm-stream-v1';
+
+function normalise(raw: Partial<ValueStream>): ValueStream {
+    return { ...emptyStream(), ...raw, id: raw.id || newId() };
+}
+
+export function loadLibrary(): ValueStream[] {
+    try {
+        const raw = localStorage.getItem(LIBRARY_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed.map(normalise);
+        }
+        // migrate the original single-map save if present
+        const legacy = localStorage.getItem(LEGACY_KEY);
+        if (legacy) {
+            const stream = normalise(JSON.parse(legacy));
+            localStorage.setItem(LIBRARY_KEY, JSON.stringify([stream]));
+            localStorage.removeItem(LEGACY_KEY);
+            return [stream];
+        }
+    } catch {
+        // corrupted save - start fresh
+    }
+    return [];
+}
+
+export function saveLibrary(streams: ValueStream[]) {
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(streams));
+}
+
+export function duplicateStream(stream: ValueStream, asFutureState: boolean): ValueStream {
+    return {
+        ...structuredClone(stream),
+        id: newId(),
+        updatedAt: Date.now(),
+        mapType: asFutureState ? 'future' : stream.mapType,
+        name: asFutureState ? `${stream.name} (Future State)` : `${stream.name} (Copy)`,
+    };
+}
+
+/** Share a map as a portable JSON file (email / Teams / client handover). */
+export function streamToJson(stream: ValueStream): string {
+    return JSON.stringify({ app: 'VSM Buddy', version: 1, stream }, null, 2);
+}
+
+export function streamFromJson(raw: string): ValueStream {
+    const parsed = JSON.parse(raw);
+    const candidate = parsed?.stream ?? parsed; // accept bare stream too
+    if (!candidate || typeof candidate !== 'object' || !Array.isArray(candidate.steps)) {
+        throw new Error('Not a VSM Buddy map file');
+    }
+    return { ...normalise(candidate), id: newId(), updatedAt: Date.now() };
+}
+
+// ============================================
 // DEFAULTS & SAMPLE
 // ============================================
 
@@ -370,8 +435,17 @@ export function emptyStep(): VsmProcessStep {
     };
 }
 
+export function newId(): string {
+    return `vsm-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+}
+
 export function emptyStream(): ValueStream {
     return {
+        id: newId(),
+        client: '',
+        area: '',
+        mapType: 'current',
+        updatedAt: Date.now(),
         name: '',
         productFamily: '',
         customerName: '',
@@ -392,6 +466,11 @@ export function emptyStream(): ValueStream {
 }
 
 export const SAMPLE_STREAM: ValueStream = {
+    id: 'vsm-sample',
+    client: 'Demo Organisation',
+    area: 'Maintenance Services',
+    mapType: 'current',
+    updatedAt: Date.now(),
     name: 'Work Order Processing',
     productFamily: 'Maintenance work orders',
     customerName: 'Client Operations',

@@ -59,6 +59,21 @@ export function VsmDataForm({ stream, metrics, onChange }: VsmDataFormProps) {
                     <p className="text-xs text-neutral-500 mt-0.5">One product or service family, from request to delivery.</p>
                 </CardHeader>
                 <CardBody className="grid sm:grid-cols-2 gap-4">
+                    <Field label="Organisation / client" hint="Whose process is this?">
+                        <input className={inputCls} value={stream.client} placeholder="Acme Industries"
+                            onChange={(e) => set({ client: e.target.value })} />
+                    </Field>
+                    <Field label="Department / business area" hint="e.g. Maintenance, Finance, Customer Service">
+                        <input className={inputCls} value={stream.area} placeholder="Maintenance Services"
+                            onChange={(e) => set({ area: e.target.value })} />
+                    </Field>
+                    <Field label="Map type" hint="Current state = as it is today. Future state = the target design.">
+                        <select className={inputCls} value={stream.mapType}
+                            onChange={(e) => set({ mapType: e.target.value as 'current' | 'future' })}>
+                            <option value="current">Current state (as-is)</option>
+                            <option value="future">Future state (target)</option>
+                        </select>
+                    </Field>
                     <Field label="Value stream name" hint="e.g. Work order processing, Quote to cash">
                         <input className={inputCls} value={stream.name} placeholder="Work Order Processing"
                             onChange={(e) => set({ name: e.target.value })} />
