@@ -24,6 +24,7 @@ import {
     ClipboardList,
     Archive,
     DollarSign,
+    GitBranch,
 } from 'lucide-react';
 import { AIChatAssistant } from './ai-chat-assistant';
 import { Logo } from './logo';
@@ -158,6 +159,30 @@ export function AppLayout({ children }: AppLayoutProps) {
                                             {count}
                                         </span>
                                     )}
+                                </Link>
+                            );
+                        })}
+
+                        <div className="px-3 mt-8 mb-2 text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                            Improvement
+                        </div>
+                        {[
+                            { name: 'Value Stream Map', href: '/value-stream', icon: GitBranch },
+                        ].map((item) => {
+                            const isActive = pathname?.startsWith(item.href);
+                            return (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    className={`
+                                        flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors
+                                        ${isActive
+                                            ? 'bg-primary-50 text-primary-700'
+                                            : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}
+                                    `}
+                                >
+                                    <item.icon size={20} className={isActive ? 'text-primary-600' : 'text-neutral-400'} />
+                                    {item.name}
                                 </Link>
                             );
                         })}
