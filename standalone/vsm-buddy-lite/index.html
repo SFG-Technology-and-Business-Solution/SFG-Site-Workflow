@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VSM Buddy — Value Stream Mapping</title>
+<meta name="theme-color" content="#0078d4" />
+<style>
+  :root {
+    --blue: #0078d4;
+    --blue-hover: #106ebe;
+    --blue-dark: #005a9e;
+    --navy: #0a2e4d;
+    --teal: #038387;
+    --green: #107c10;
+    --green-bg: #dff6dd;
+    --orange: #d83b01;
+    --orange-bg: #fdf0e7;
+    --red: #d13438;
+    --red-bg: #fdf3f4;
+    --ink: #242424;
+    --ink-2: #616161;
+    --ink-3: #8a8a8a;
+    --line: #e5e5e5;
+    --panel: #faf9f8;
+    --card-shadow: 0 1.6px 3.6px rgba(0,0,0,.08), 0 0.3px 0.9px rgba(0,0,0,.06);
+    --font: "Segoe UI", "Segoe UI Variable Text", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: #ffffff; color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+  /* ---------- Top bar ---------- */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: #fff; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 56px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+    display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px;
+  }
+  .brand-name { font-size: 16px; font-weight: 600; color: var(--ink); }
+  .brand-name span { color: var(--blue); }
+  .header-tag { font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; background: var(--panel); }
+
+  /* ---------- Hero ---------- */
+  .hero { max-width: 1200px; margin: 0 auto; padding: 48px 24px 8px; }
+  .hero h1 { font-size: clamp(28px, 4.5vw, 44px); font-weight: 700; color: var(--navy); letter-spacing: -0.5px; line-height: 1.15; }
+  .hero h1 span { color: var(--blue); }
+  .hero p { margin-top: 10px; font-size: 15px; color: var(--ink-2); max-width: 560px; line-height: 1.55; }
+
+  /* ---------- Layout ---------- */
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } }
+
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--card-shadow); }
+  .card-h { padding: 14px 18px; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .card-h::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--blue); }
+  .card-b { padding: 18px; }
+
+  /* ---------- Form ---------- */
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin: 14px 0 6px; }
+  label:first-child { margin-top: 0; }
+  label small { font-weight: 400; color: var(--ink-3); }
+  input[type="text"], input[type="number"] {
+    width: 100%; padding: 9px 12px; font: inherit; font-size: 14px; color: var(--ink);
+    background: #fff; border: 1px solid #d1d1d1; border-bottom-color: #8a8a8a; border-radius: 4px;
+    outline: none; transition: border-color .12s;
+  }
+  input:focus { border-bottom: 2px solid var(--blue); padding-bottom: 8px; }
+  .btn {
+    width: 100%; margin-top: 18px; padding: 10px 16px; font: inherit; font-size: 14px; font-weight: 600;
+    color: #fff; background: var(--blue); border: none; border-radius: 4px; cursor: pointer; transition: background .12s;
+  }
+  .btn:hover { background: var(--blue-hover); }
+
+  /* ---------- Metrics ---------- */
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+  .metric .k { font-size: 11px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .4px; }
+  .metric .v { font-size: 24px; font-weight: 700; color: var(--navy); margin-top: 4px; }
+  .metric .v small { font-size: 12px; font-weight: 400; color: var(--ink-3); margin-left: 3px; }
+  .metric.good .v { color: var(--green); }
+  .metric.warn .v { color: var(--orange); }
+  .eff-bar { margin-top: 14px; }
+  .eff-bar .track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .eff-bar .fill { height: 100%; background: var(--blue); border-radius: 4px; transition: width .3s; }
+  .eff-bar .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-3); margin-top: 5px; }
+
+  /* ---------- Flow canvas ---------- */
+  .flow { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 26px 6px 14px; }
+  .terminal { flex-shrink: 0; text-align: center; }
+  .terminal .box { width: 52px; height: 52px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); display: grid; place-items: center; font-size: 20px; }
+  .terminal .t { font-size: 10px; font-weight: 600; letter-spacing: .6px; color: var(--ink-3); text-transform: uppercase; margin-top: 6px; }
+  .arrow { flex-shrink: 0; width: 34px; height: 2px; background: var(--line); position: relative; margin: 0 2px; }
+  .arrow::after { content: ""; position: absolute; right: -1px; top: -3px; border: 4px solid transparent; border-left-color: #c8c8c8; }
+  .step-node { flex-shrink: 0; position: relative; width: 168px; }
+  .wait-chip {
+    position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; font-weight: 600; color: var(--teal); background: #e4f5f5;
+    border: 1px solid #b9e2e3; border-radius: 10px; padding: 1px 9px; white-space: nowrap;
+  }
+  .step-card { border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: var(--card-shadow); overflow: hidden; }
+  .step-card.bottleneck { border-color: var(--orange); }
+  .step-card .name { background: var(--blue); color: #fff; font-size: 13px; font-weight: 600; padding: 7px 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step-card.bottleneck .name { background: var(--orange); }
+  .step-card .rows { padding: 8px 11px; font-size: 12px; color: var(--ink-2); }
+  .step-card .rows div { display: flex; justify-content: space-between; padding: 2px 0; }
+  .step-card .rows b { color: var(--ink); font-weight: 600; }
+  .bottleneck-note { font-size: 12px; color: var(--orange); background: var(--orange-bg); border: 1px solid #f5cdb5; border-radius: 6px; padding: 8px 12px; margin-top: 6px; display: none; }
+
+  /* ---------- Lead time bar ---------- */
+  .lt-bar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+  .lt-bar .seg-ct { background: var(--blue); }
+  .lt-bar .seg-wt { background: #c7e0f4; }
+  .legend { display: flex; gap: 18px; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+  /* ---------- Steps list ---------- */
+  .step-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .step-row:last-child { border-bottom: none; }
+  .step-row .meta { color: var(--ink-3); font-size: 12px; }
+  .del { background: none; border: 1px solid var(--line); color: var(--ink-2); border-radius: 4px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  .del:hover { color: var(--red); border-color: var(--red); background: var(--red-bg); }
+  .empty { color: var(--ink-3); font-size: 13px; text-align: center; padding: 18px 0; }
+
+  footer { max-width: 1200px; margin: 0 auto; padding: 26px 24px 40px; font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">V</div>
+    <div class="brand-name">VSM<span>Buddy</span></div>
+  </div>
+  <div class="header-tag">Value Stream Mapping</div>
+</header>
+
+<section class="hero">
+  <h1>Map your value stream.<br /><span>Find the waste.</span></h1>
+  <p>Visualise end-to-end workflows, quantify cycle and wait times, and pinpoint where value is lost.</p>
+</section>
+
+<main class="wrap">
+  <!-- Left column -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <div class="card">
+      <div class="card-h">Add process step</div>
+      <div class="card-b">
+        <form id="stepForm">
+          <label for="fName">Step name</label>
+          <input id="fName" type="text" placeholder="e.g. Code review" required />
+          <label for="fCt">Cycle time <small>(minutes of actual work)</small></label>
+          <input id="fCt" type="number" min="0" step="any" placeholder="45" required />
+          <label for="fWt">Wait time before <small>(minutes idle)</small></label>
+          <input id="fWt" type="number" min="0" step="any" value="0" />
+          <button class="btn" type="submit">+ Add step</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Stream metrics</div>
+      <div class="card-b">
+        <div class="metric-grid">
+          <div class="metric"><div class="k">Lead time</div><div class="v" id="mLead">0<small>min</small></div></div>
+          <div class="metric good"><div class="k">Process time</div><div class="v" id="mProc">0<small>min</small></div></div>
+          <div class="metric warn"><div class="k">Efficiency</div><div class="v" id="mEff">—</div></div>
+          <div class="metric"><div class="k">Steps</div><div class="v" id="mSteps">0</div></div>
+        </div>
+        <div class="eff-bar">
+          <div class="track"><div class="fill" id="effFill" style="width:0%"></div></div>
+          <div class="ends"><span>Waste</span><span>Value-added</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div style="display:flex; flex-direction:column; gap:20px; min-width:0;">
+    <div class="card">
+      <div class="card-h">Value stream map</div>
+      <div class="card-b">
+        <div class="flow" id="flow"></div>
+        <div class="bottleneck-note" id="bnNote"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Lead time breakdown</div>
+      <div class="card-b">
+        <div class="lt-bar" id="ltBar"><div class="seg-wt" style="flex:1"></div></div>
+        <div class="legend">
+          <span><i style="background:var(--blue)"></i>Cycle time (value-added)</span>
+          <span><i style="background:#c7e0f4"></i>Wait time (waste)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Steps</div>
+      <div class="card-b" id="stepList"><div class="empty">No steps yet — add your first process step on the left.</div></div>
+    </div>
+  </div>
+</main>
+
+<footer>VSM Buddy · Lean value stream mapping for any process · Data is saved privately in this browser.</footer>
+
+<script>
+(function () {
+  var KEY = 'vsm-buddy-lite';
+  var steps = [];
+  try { steps = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { steps = []; }
+
+  var form = document.getElementById('stepForm');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = document.getElementById('fName').value.trim();
+    var ct = parseFloat(document.getElementById('fCt').value);
+    var wt = parseFloat(document.getElementById('fWt').value) || 0;
+    if (!name || isNaN(ct) || ct < 0) return;
+    steps.push({ id: Date.now(), name: name, ct: ct, wt: wt });
+    form.reset();
+    document.getElementById('fWt').value = 0;
+    document.getElementById('fName').focus();
+    save(); render();
+  });
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(steps)); }
+
+  function fmt(min) {
+    if (min >= 1440) return (min / 1440).toFixed(1) + ' d';
+    if (min >= 60) return (min / 60).toFixed(1) + ' h';
+    return Math.round(min * 10) / 10 + ' m';
+  }
+
+  function render() {
+    var totCt = steps.reduce(function (s, x) { return s + x.ct; }, 0);
+    var totWt = steps.reduce(function (s, x) { return s + x.wt; }, 0);
+    var lead = totCt + totWt;
+    var eff = lead > 0 ? (totCt / lead) * 100 : 0;
+    var maxCt = Math.max.apply(null, [0].concat(steps.map(function (x) { return x.ct; })));
+
+    // Metrics
+    setMetric('mLead', lead); setMetric('mProc', totCt);
+    document.getElementById('mEff').textContent = lead > 0 ? eff.toFixed(0) + '%' : '—';
+    document.getElementById('mSteps').textContent = steps.length;
+    document.getElementById('effFill').style.width = eff + '%';
+
+    // Flow
+    var flow = document.getElementById('flow');
+    var h = '<div class="terminal"><div class="box">📋</div><div class="t">Start</div></div>';
+    steps.forEach(function (s) {
+      var isBn = steps.length > 1 && s.ct === maxCt && maxCt > 0;
+      h += '<div class="arrow"></div>';
+      h += '<div class="step-node">' +
+        (s.wt > 0 ? '<div class="wait-chip">wait ' + fmt(s.wt) + '</div>' : '') +
+        '<div class="step-card' + (isBn ? ' bottleneck' : '') + '">' +
+        '<div class="name" title="' + esc(s.name) + '">' + esc(s.name) + '</div>' +
+        '<div class="rows"><div><span>Cycle time</span><b>' + fmt(s.ct) + '</b></div>' +
+        '<div><span>Wait before</span><b>' + fmt(s.wt) + '</b></div></div></div></div>';
+    });
+    h += '<div class="arrow"></div><div class="terminal"><div class="box">✅</div><div class="t">Customer</div></div>';
+    flow.innerHTML = h;
+
+    // Bottleneck note
+    var note = document.getElementById('bnNote');
+    if (steps.length > 1 && maxCt > 0) {
+      var bn = steps.filter(function (s) { return s.ct === maxCt; })[0];
+      note.style.display = 'block';
+      note.textContent = 'Bottleneck: "' + bn.name + '" has the longest cycle time (' + fmt(bn.ct) + '). Improving it first lifts the whole stream.';
+    } else { note.style.display = 'none'; }
+
+    // Lead time bar (segments in sequence: wt then ct per step)
+    var bar = document.getElementById('ltBar');
+    if (lead <= 0) { bar.innerHTML = '<div class="seg-wt" style="flex:1"></div>'; }
+    else {
+      var b = '';
+      steps.forEach(function (s) {
+        if (s.wt > 0) b += '<div class="seg-wt" style="flex:' + s.wt + '" title="' + esc(s.name) + ' — wait ' + fmt(s.wt) + '"></div>';
+        if (s.ct > 0) b += '<div class="seg-ct" style="flex:' + s.ct + '" title="' + esc(s.name) + ' — work ' + fmt(s.ct) + '"></div>';
+      });
+      bar.innerHTML = b;
+    }
+
+    // Step list
+    var list = document.getElementById('stepList');
+    if (!steps.length) {
+      list.innerHTML = '<div class="empty">No steps yet — add your first process step on the left.</div>';
+    } else {
+      list.innerHTML = steps.map(function (s, i) {
+        return '<div class="step-row"><div><b>' + (i + 1) + '. ' + esc(s.name) + '</b>' +
+          '<div class="meta">work ' + fmt(s.ct) + ' · wait ' + fmt(s.wt) + '</div></div>' +
+          '<button class="del" data-id="' + s.id + '">Remove</button></div>';
+      }).join('');
+      Array.prototype.forEach.call(list.querySelectorAll('.del'), function (btn) {
+        btn.addEventListener('click', function () {
+          steps = steps.filter(function (s) { return String(s.id) !== btn.getAttribute('data-id'); });
+          save(); render();
+        });
+      });
+    }
+  }
+
+  function setMetric(id, min) {
+    var el = document.getElementById(id);
+    if (min >= 1440) el.innerHTML = (min / 1440).toFixed(1) + '<small>days</small>';
+    else if (min >= 60) el.innerHTML = (min / 60).toFixed(1) + '<small>hrs</small>';
+    else el.innerHTML = Math.round(min * 10) / 10 + '<small>min</small>';
+  }
+
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  render();
+})();
+</script>
+</body>
+</html>
