@@ -25,6 +25,7 @@ import {
     Archive,
     DollarSign,
     GitBranch,
+    MessageSquare,
 } from 'lucide-react';
 import { AIChatAssistant } from './ai-chat-assistant';
 import { Logo } from './logo';
@@ -212,6 +213,17 @@ export function AppLayout({ children }: AppLayoutProps) {
                             );
                         })}
                     </nav>
+
+                    {/* Feedback */}
+                    <div className="px-4 pb-1">
+                        <a
+                            href={`mailto:adrian.r@sfgtechsolutions.com?subject=${encodeURIComponent('Site Buddy feedback')}&body=${encodeURIComponent('What were you trying to do?\n\nWhat happened (or what was confusing)?\n\nPage you were on:\n')}`}
+                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                        >
+                            <MessageSquare size={20} className="text-neutral-400" />
+                            Send feedback
+                        </a>
+                    </div>
 
                     {/* User Profile */}
                     <div className="p-4 border-t border-neutral-200">

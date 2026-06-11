@@ -6,6 +6,7 @@ import React from 'react';
 import { Plus, Trash2, ArrowDown, ArrowUp, Info } from 'lucide-react';
 import { Card, CardHeader, CardBody, Button } from '../ui';
 import { ValueStream, VsmProcessStep, VsmMetrics, emptyStep, fmtSeconds } from '@/lib/vsm';
+import { VsmSanity } from './vsm-sanity';
 
 interface VsmDataFormProps {
     stream: ValueStream;
@@ -209,31 +210,31 @@ export function VsmDataForm({ stream, metrics, onChange }: VsmDataFormProps) {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                                    <Field label="Cycle time (s)" hint="Touch time per unit">
+                                    <Field label="Work time (s)" hint="Hands-on time per item, in seconds (lean: cycle time)">
                                         <input type="number" className={inputCls} value={s.cycleTimeSec}
                                             onChange={(e) => setStep(s.id, { cycleTimeSec: num(e.target.value) })} />
                                     </Field>
-                                    <Field label="Changeover (s)">
+                                    <Field label="Setup time (s)" hint="Time lost switching between job types (lean: changeover)">
                                         <input type="number" className={inputCls} value={s.changeoverSec}
                                             onChange={(e) => setStep(s.id, { changeoverSec: num(e.target.value) })} />
                                     </Field>
-                                    <Field label="Uptime %">
+                                    <Field label="Available %" hint="How often this step is ready when needed (lean: uptime)">
                                         <input type="number" max={100} className={inputCls} value={s.uptimePct}
                                             onChange={(e) => setStep(s.id, { uptimePct: Math.min(100, num(e.target.value)) })} />
                                     </Field>
-                                    <Field label="Yield %">
+                                    <Field label="Right first time %" hint="Share completed without rework (lean: yield)">
                                         <input type="number" max={100} className={inputCls} value={s.yieldPct}
                                             onChange={(e) => setStep(s.id, { yieldPct: Math.min(100, num(e.target.value)) })} />
                                     </Field>
-                                    <Field label="Batch size">
+                                    <Field label="Batch size" hint="How many items move together to the next step">
                                         <input type="number" className={inputCls} value={s.batchSize}
                                             onChange={(e) => setStep(s.id, { batchSize: num(e.target.value) })} />
                                     </Field>
-                                    <Field label="Queue before" hint="Units waiting">
+                                    <Field label="Queue before" hint="Items waiting in front of this step right now">
                                         <input type="number" className={inputCls} value={s.inventoryBefore}
                                             onChange={(e) => setStep(s.id, { inventoryBefore: num(e.target.value) })} />
                                     </Field>
-                                    <Field label="Operators">
+                                    <Field label="People" hint="How many people work this step">
                                         <input type="number" className={inputCls} value={s.operators}
                                             onChange={(e) => setStep(s.id, { operators: num(e.target.value) })} />
                                     </Field>
@@ -254,6 +255,7 @@ export function VsmDataForm({ stream, metrics, onChange }: VsmDataFormProps) {
                             Add another step
                         </Button>
                     )}
+                    <VsmSanity stream={stream} metrics={metrics} />
                 </CardBody>
             </Card>
         </div>

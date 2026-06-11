@@ -8,6 +8,7 @@ import {
     ClipboardList,
     GitBranch,
     ListChecks,
+    FileText,
     ChevronLeft,
     Check,
 } from 'lucide-react';
@@ -16,6 +17,8 @@ import { VsmGuide } from '@/components/vsm/vsm-guide';
 import { VsmDataForm } from '@/components/vsm/vsm-data-form';
 import { VsmCanvas } from '@/components/vsm/vsm-canvas';
 import { VsmActionPlan } from '@/components/vsm/vsm-action-plan';
+import { VsmSow } from '@/components/vsm/vsm-sow';
+import { VsmDescribe } from '@/components/vsm/vsm-describe';
 import { VsmLibrary } from '@/components/vsm/vsm-library';
 import { VsmBuddyLogo } from '@/components/vsm/vsm-buddy-logo';
 import {
@@ -30,13 +33,14 @@ import {
     newId,
 } from '@/lib/vsm';
 
-type Tab = 'learn' | 'data' | 'map' | 'plan';
+type Tab = 'learn' | 'data' | 'map' | 'plan' | 'sow';
 
 const TABS: { id: Tab; label: string; icon: typeof BookOpen; hint: string }[] = [
     { id: 'learn', label: '1 · Learn', icon: BookOpen, hint: 'What to collect & how' },
     { id: 'data', label: '2 · Collect Data', icon: ClipboardList, hint: 'Enter what you measured' },
     { id: 'map', label: '3 · Map', icon: GitBranch, hint: 'The drawn value stream' },
     { id: 'plan', label: '4 · Action Plan', icon: ListChecks, hint: 'Step-by-step improvements' },
+    { id: 'sow', label: '5 · Scope of Works', icon: FileText, hint: 'Microsoft automation proposal' },
 ];
 
 export default function ValueStreamPage() {
@@ -180,7 +184,7 @@ export default function ValueStreamPage() {
                     <div className="bg-white rounded-xl border border-neutral-200 p-1.5 flex flex-col sm:flex-row gap-1">
                         {TABS.map((t) => {
                             const isActive = tab === t.id;
-                            const needsData = (t.id === 'map' || t.id === 'plan') && !hasSteps;
+                            const needsData = (t.id === 'map' || t.id === 'plan' || t.id === 'sow') && !hasSteps;
                             return (
                                 <button
                                     key={t.id}
@@ -211,6 +215,7 @@ export default function ValueStreamPage() {
 
                     {tab === 'data' && (
                         <div className="space-y-4">
+                            <VsmDescribe stream={active} onChange={updateActive} />
                             <VsmDataForm stream={active} metrics={metrics} onChange={updateActive} />
                             {hasSteps && (
                                 <div className="flex justify-end">
@@ -238,7 +243,19 @@ export default function ValueStreamPage() {
 
                     {tab === 'plan' &&
                         (hasSteps ? (
-                            <VsmActionPlan stream={active} metrics={metrics} />
+                            <div className="space-y-4">
+                                <VsmActionPlan stream={active} metrics={metrics} />
+                                <div className="flex justify-end">
+                                    <Button onClick={() => setTab('sow')}>Generate the Scope of Works →</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <EmptyPrompt onData={() => setTab('data')} />
+                        ))}
+
+                    {tab === 'sow' &&
+                        (hasSteps ? (
+                            <VsmSow stream={active} metrics={metrics} />
                         ) : (
                             <EmptyPrompt onData={() => setTab('data')} />
                         ))}

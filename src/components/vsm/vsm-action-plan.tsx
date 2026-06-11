@@ -2,8 +2,8 @@
 
 // Analysis of the current-state map + generated step-by-step improvement plan.
 
-import React from 'react';
-import { Download, AlertTriangle, Clock, Gauge, Timer, Printer } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Download, AlertTriangle, Clock, Gauge, Timer, Printer, Sparkles, Copy, Check } from 'lucide-react';
 import { Card, CardHeader, CardBody, Button, StatCard } from '../ui';
 import {
     ValueStream,
@@ -15,6 +15,7 @@ import {
     planToCsv,
     downloadFile,
 } from '@/lib/vsm';
+import { aiAvailable, aiNarrative, templateNarrative } from '@/lib/vsm-ai';
 
 interface VsmActionPlanProps {
     stream: ValueStream;
@@ -32,6 +33,40 @@ export function VsmActionPlan({ stream, metrics }: VsmActionPlanProps) {
     const phases = [...new Set(actions.map((a) => a.phase))];
     const bottleneck = metrics.stepMetrics.find((m) => m.isBottleneck);
 
+    const [narrative, setNarrative] = useState(() => templateNarrative(stream, metrics));
+    const [hasAi, setHasAi] = useState(false);
+    const [rewriting, setRewriting] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        aiAvailable().then(setHasAi);
+    }, []);
+
+    useEffect(() => {
+        setNarrative(templateNarrative(stream, metrics));
+    }, [stream, metrics]);
+
+    const rewrite = async () => {
+        setRewriting(true);
+        try {
+            setNarrative(await aiNarrative(stream, metrics));
+        } catch {
+            // keep the template version - it is always valid
+        } finally {
+            setRewriting(false);
+        }
+    };
+
+    const copyNarrative = async () => {
+        try {
+            await navigator.clipboard.writeText(narrative);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            // clipboard unavailable (e.g. http) - ignore
+        }
+    };
+
     const exportCsv = () =>
         downloadFile(
             `${stream.name || 'vsm'}-action-plan.csv`,
@@ -48,6 +83,30 @@ export function VsmActionPlan({ stream, metrics }: VsmActionPlanProps) {
                 <StatCard icon={<Gauge size={20} />} value={`${metrics.pcePct.toFixed(1)}%`} label="Process cycle efficiency" colorClass="amber" />
                 <StatCard icon={<AlertTriangle size={20} />} value={bottleneck?.step.name || '—'} label="Bottleneck step" colorClass="red" />
             </div>
+
+            {/* Plain-English summary for managers */}
+            <Card>
+                <CardHeader
+                    action={
+                        <div className="flex gap-2">
+                            {hasAi && (
+                                <Button variant="secondary" size="sm" icon={<Sparkles size={14} />} onClick={rewrite} disabled={rewriting}>
+                                    {rewriting ? 'Rewriting…' : 'Rewrite with AI'}
+                                </Button>
+                            )}
+                            <Button variant="secondary" size="sm" icon={copied ? <Check size={14} /> : <Copy size={14} />} onClick={copyNarrative}>
+                                {copied ? 'Copied' : 'Copy'}
+                            </Button>
+                        </div>
+                    }
+                >
+                    <h3 className="font-semibold text-neutral-900">Plain-English summary</h3>
+                    <p className="text-xs text-neutral-500 mt-0.5">Three paragraphs ready to paste into an email to a manager or director.</p>
+                </CardHeader>
+                <CardBody>
+                    <div className="whitespace-pre-wrap text-sm text-neutral-700 leading-relaxed">{narrative}</div>
+                </CardBody>
+            </Card>
 
             {/* What the map says */}
             <Card>
