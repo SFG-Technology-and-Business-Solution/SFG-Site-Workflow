@@ -20,7 +20,8 @@ export interface ValueStream {
     mapType: 'current' | 'future';
     updatedAt: number;
     name: string;
-    productFamily: string;
+    productService: string;    // the specific product or service that flows through the stream
+    productFamily: string;     // the family of similar products/services this map covers
     customerName: string;
     supplierName: string;
     demandPerMonth: number;
@@ -447,6 +448,7 @@ export function emptyStream(): ValueStream {
         mapType: 'current',
         updatedAt: Date.now(),
         name: '',
+        productService: '',
         productFamily: '',
         customerName: '',
         supplierName: '',
@@ -472,6 +474,7 @@ export const SAMPLE_STREAM: ValueStream = {
     mapType: 'current',
     updatedAt: Date.now(),
     name: 'Work Order Processing',
+    productService: 'Work order completion',
     productFamily: 'Maintenance work orders',
     customerName: 'Client Operations',
     supplierName: 'Client Asset Team',

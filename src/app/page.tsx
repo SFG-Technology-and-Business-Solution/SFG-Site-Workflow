@@ -2,7 +2,7 @@
 
 // VSM Buddy: map library + per-map workspace (Learn -> Collect Data -> Map -> Action Plan)
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     BookOpen,
     ClipboardList,
@@ -10,6 +10,8 @@ import {
     ListChecks,
     ChevronLeft,
     Check,
+    Cloud,
+    CloudOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { VsmGuide } from '@/components/vsm/vsm-guide';
@@ -18,6 +20,7 @@ import { VsmCanvas } from '@/components/vsm/vsm-canvas';
 import { VsmActionPlan } from '@/components/vsm/vsm-action-plan';
 import { VsmLibrary } from '@/components/vsm/vsm-library';
 import { VsmBuddyLogo } from '@/components/vsm/vsm-buddy-logo';
+import { VsmCaptureAgent } from '@/components/vsm/vsm-capture-agent';
 import {
     ValueStream,
     calcMetrics,
@@ -45,14 +48,43 @@ export default function ValueStreamPage() {
     const [tab, setTab] = useState<Tab>('learn');
     const [loaded, setLoaded] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [cloud, setCloud] = useState<'checking' | 'on' | 'off'>('checking');
+    const syncedRef = useRef<Record<string, number>>({});
 
-    // Load library once on mount, deferred so hydration completes first
+    // Load the local library, then merge in the shared team library from the
+    // cloud (Netlify Blobs). Newest copy of each map wins; anything newer
+    // locally is pushed back up.
     useEffect(() => {
-        const t = setTimeout(() => {
-            setStreams(loadLibrary());
-            setLoaded(true);
-        }, 0);
-        return () => clearTimeout(t);
+        let cancelled = false;
+        (async () => {
+            const local = loadLibrary();
+            let merged = local;
+            try {
+                const res = await fetch('/api/maps');
+                const data = await res.json();
+                if (data.available && Array.isArray(data.streams)) {
+                    merged = mergeStreams(local, data.streams);
+                    const cloudAt = new Map<string, number>(
+                        (data.streams as ValueStream[]).map((s) => [s.id, s.updatedAt ?? 0])
+                    );
+                    merged.forEach((s) => {
+                        syncedRef.current[s.id] = Math.min(s.updatedAt, cloudAt.get(s.id) ?? 0);
+                    });
+                    if (!cancelled) setCloud('on');
+                } else if (!cancelled) {
+                    setCloud('off');
+                }
+            } catch {
+                if (!cancelled) setCloud('off');
+            }
+            if (!cancelled) {
+                setStreams(merged);
+                setLoaded(true);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     // Brand the browser tab while on this page
@@ -64,16 +96,32 @@ export default function ValueStreamPage() {
         };
     }, []);
 
-    // Autosave the whole library (debounced)
+    // Autosave the whole library locally (debounced), then push any maps
+    // edited since the last sync up to the shared cloud library.
     useEffect(() => {
         if (!loaded) return;
         const t = setTimeout(() => {
             saveLibrary(streams);
             setSaved(true);
             setTimeout(() => setSaved(false), 1500);
+            if (cloud === 'on') {
+                const changed = streams.filter((s) => (syncedRef.current[s.id] ?? 0) < s.updatedAt);
+                if (changed.length > 0) {
+                    fetch('/api/maps', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ streams: changed }),
+                    })
+                        .then((r) => r.json())
+                        .then((d) => {
+                            if (d.available) changed.forEach((s) => (syncedRef.current[s.id] = s.updatedAt));
+                        })
+                        .catch(() => undefined);
+                }
+            }
         }, 600);
         return () => clearTimeout(t);
-    }, [streams, loaded]);
+    }, [streams, loaded, cloud]);
 
     const active = streams.find((s) => s.id === activeId) ?? null;
     const metrics = useMemo(() => (active ? calcMetrics(active) : null), [active]);
@@ -116,6 +164,10 @@ export default function ValueStreamPage() {
         if (!confirm(`Delete "${s?.name || 'this map'}"? This cannot be undone.`)) return;
         setStreams((prev) => prev.filter((x) => x.id !== id));
         if (activeId === id) setActiveId(null);
+        if (cloud === 'on') {
+            fetch(`/api/maps?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => undefined);
+        }
+        delete syncedRef.current[id];
     };
 
     const importMap = async (file: File) => {
@@ -151,6 +203,16 @@ export default function ValueStreamPage() {
                     {saved && (
                         <span className="flex items-center gap-1 text-xs text-success font-medium">
                             <Check size={14} /> Saved
+                        </span>
+                    )}
+                    {cloud === 'on' && (
+                        <span className="flex items-center gap-1 text-xs text-neutral-400 font-medium" title="Maps sync to the shared team library">
+                            <Cloud size={14} /> Team library
+                        </span>
+                    )}
+                    {cloud === 'off' && (
+                        <span className="flex items-center gap-1 text-xs text-neutral-400 font-medium" title="Cloud sync unavailable - maps are saved in this browser only">
+                            <CloudOff size={14} /> Local only
                         </span>
                     )}
                     {active && (
@@ -242,10 +304,22 @@ export default function ValueStreamPage() {
                         ) : (
                             <EmptyPrompt onData={() => setTab('data')} />
                         ))}
+
+                    <VsmCaptureAgent stream={active} onChange={updateActive} />
                 </>
             )}
         </div>
     );
+}
+
+/** Merge local and cloud copies of the library - newest updatedAt wins per map. */
+function mergeStreams(local: ValueStream[], remote: ValueStream[]): ValueStream[] {
+    const byId = new Map<string, ValueStream>();
+    for (const s of [...remote, ...local]) {
+        const existing = byId.get(s.id);
+        if (!existing || (existing.updatedAt ?? 0) < (s.updatedAt ?? 0)) byId.set(s.id, s);
+    }
+    return [...byId.values()].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 }
 
 function EmptyPrompt({ onData }: { onData: () => void }) {
