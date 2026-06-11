@@ -63,7 +63,8 @@ interface ChatMsg {
 }
 
 export async function POST(req: NextRequest) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    // Tolerate stray whitespace or quotes around the stored secret
+    const apiKey = (process.env.GEMINI_API_KEY ?? '').trim().replace(/^['"]+|['"]+$/g, '');
     if (!apiKey) {
         return NextResponse.json({
             needsSetup: true,
@@ -125,13 +126,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (!resp.ok) {
+        const detail = (await resp.text().catch(() => '')).slice(0, 300);
         const friendly =
             resp.status === 429
                 ? 'The free AI quota is used up for the moment. Wait a minute and try again.'
                 : resp.status === 400 || resp.status === 403
                   ? 'The AI key looks invalid or restricted. An administrator should check GEMINI_API_KEY in the Netlify settings.'
                   : 'The AI service returned an error. Please try again.';
-        return NextResponse.json({ error: `gemini-${resp.status}`, reply: friendly, updatedStream: null, done: false });
+        return NextResponse.json({ error: `gemini-${resp.status}`, detail, reply: friendly, updatedStream: null, done: false });
     }
 
     const data = await resp.json();
