@@ -25,7 +25,9 @@ interface VsmProcessStep {
 interface ValueStream {
   id: string; client: string; area: string;
   mapType: 'current' | 'future'; updatedAt: number;
-  name: string; productFamily: string;
+  name: string;
+  productService: string;  // the specific product or service that flows through the stream
+  productFamily: string;   // the family of similar products/services this map covers
   customerName: string; supplierName: string;
   demandPerMonth: number; daysPerMonth: number;
   shiftsPerDay: number; shiftHours: number; breaksMinPerShift: number;
@@ -36,7 +38,7 @@ interface ValueStream {
 }
 
 INTERVIEW STAGES (follow in order, skipping anything already filled in):
-1. Basics - map name, client/organisation, area/department, product family.
+1. Basics - map name, client/organisation, area/department, the specific product or service (productService), and its family of similar work (productFamily).
 2. Endpoints - who the customer is, who the supplier is, how the customer orders (customerOrderMethod), how you order from the supplier (supplierOrderMethod), how work is scheduled (scheduleMethod), inbound deliveryFrequency, outbound shipmentFrequency.
 3. Demand & time - demandPerMonth, daysPerMonth, shiftsPerDay, shiftHours, breaksMinPerShift.
 4. Process steps - the steps of the process in order, names only first.

@@ -55,6 +55,7 @@ function applyAgentStream(current: ValueStream, incoming: Record<string, unknown
         area: str(incoming.area, current.area),
         mapType: incoming.mapType === 'future' ? 'future' : current.mapType,
         name: str(incoming.name, current.name),
+        productService: str(incoming.productService, current.productService),
         productFamily: str(incoming.productFamily, current.productFamily),
         customerName: str(incoming.customerName, current.customerName),
         supplierName: str(incoming.supplierName, current.supplierName),
