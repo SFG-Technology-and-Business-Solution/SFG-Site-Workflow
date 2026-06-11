@@ -22,8 +22,8 @@ interface VsmActionPlanProps {
 }
 
 const PRIORITY_STYLES: Record<PlanAction['priority'], string> = {
-    High: 'bg-red-100 text-red-700',
-    Medium: 'bg-amber-100 text-amber-700',
+    High: 'bg-accent-red-light text-accent-red',
+    Medium: 'bg-warning-light text-warning',
     Low: 'bg-neutral-100 text-neutral-600',
 };
 

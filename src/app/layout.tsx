@@ -1,14 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { JobProvider } from "@/lib/job-context";
-
-
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Site Buddy | Intelligent Construction Workflow Management",
@@ -22,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2563EB",
+  themeColor: "#0078D4",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -36,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.variable} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <AuthProvider>
           <JobProvider>
             {children}

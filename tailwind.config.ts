@@ -9,17 +9,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Fluent-style communication blue ramp
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb', // Brand
-          700: '#1e40af',
-          800: '#1e293b',
-          900: '#0f172a',
+          50: '#eff6fc',
+          100: '#deecf9',
+          200: '#c7e0f4',
+          300: '#a3ccec',
+          400: '#71afe5',
+          500: '#2b88d8',
+          600: '#0078d4', // Brand
+          700: '#005a9e',
+          800: '#004578',
+          900: '#0a2e4d',
         },
         neutral: {
           50: '#f9fafb',
@@ -34,29 +35,30 @@ const config: Config = {
           900: '#111827',
         },
         accent: {
-          red: '#dc2626',
-          'red-light': '#fef2f2',
+          red: '#d13438',
+          'red-light': '#fdf3f4',
         },
         success: {
-          DEFAULT: '#22c55e',
-          light: '#f0fdf4',
+          DEFAULT: '#107c10',
+          light: '#dff6dd',
         },
         warning: {
-          DEFAULT: '#f59e0b',
-          light: '#fffbeb',
+          DEFAULT: '#d83b01',
+          light: '#fdf0e7',
         },
         info: {
-          DEFAULT: '#0ea5e9',
-          light: '#f0f9ff',
+          DEFAULT: '#038387',
+          light: '#e4f5f5',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['"Segoe UI"', '"Segoe UI Variable Text"', 'system-ui', '-apple-system', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        // All UI text renders sans-serif, including numeric/ID text
+        mono: ['"Segoe UI"', 'system-ui', '-apple-system', 'Arial', 'sans-serif'],
       },
       borderRadius: {
-        xl: '0.75rem',
-        '2xl': '1rem',
+        xl: '0.5rem',
+        '2xl': '0.625rem',
       },
     },
   },
