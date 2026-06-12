@@ -100,20 +100,6 @@
   .prio.Low { background: var(--panel); color: var(--ink-2); }
   .narrative { white-space: pre-wrap; font-size: 13.5px; line-height: 1.6; color: var(--ink); }
 
-  .bp-flow { display: flex; align-items: stretch; overflow-x: auto; padding: 22px 4px 10px; }
-  .bp-card { flex-shrink: 0; width: 176px; border-radius: 8px; border: 1px solid; box-shadow: var(--shadow); overflow: hidden; background: #fff; }
-  .bp-card .h { padding: 6px 10px; font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .bp-card .b { padding: 8px 10px; font-size: 11px; line-height: 1.45; }
-  .bp-card .mode { font-weight: 700; display: block; margin-bottom: 2px; }
-  .bp-auto { border-color: #a3ccec; } .bp-auto .h { background: var(--blue); } .bp-auto .mode { color: var(--blue-dark); } .bp-auto .b { background: var(--blue-50); }
-  .bp-assist { border-color: #9fd8d9; } .bp-assist .h { background: var(--teal); } .bp-assist .mode { color: var(--teal); } .bp-assist .b { background: var(--teal-bg); }
-  .bp-human { border-color: #d1d1d1; } .bp-human .h { background: #757575; } .bp-human .mode { color: var(--ink-2); } .bp-human .b { background: var(--panel); }
-  .bp-link { flex-shrink: 0; width: 42px; position: relative; display: flex; align-items: center; }
-  .bp-link .ln { width: 100%; height: 2px; background: #c8c8c8; }
-  .bp-wait { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 600; white-space: nowrap;
-    padding: 1px 8px; border-radius: 9px; border: 1px solid; }
-  .bp-wait.gone { color: var(--ink-3); background: var(--panel); border-color: var(--line); text-decoration: line-through; }
-  .bp-wait.stay { color: var(--orange); background: var(--orange-bg); border-color: #f0c4a8; }
   .bars { margin-top: 10px; }
   .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
   .bar-row .bl { width: 78px; font-size: 12px; font-weight: 600; color: var(--ink-2); text-align: right; flex-shrink: 0; }
@@ -237,9 +223,11 @@
   <section class="panel" id="p-blueprint">
     <div class="card">
       <div class="card-h"><span class="t">The automated future state</span>
-        <span class="sub">Your process redrawn with the Microsoft tool that runs each step. Blue = fully automated · teal = a person with automation doing the legwork · grey = stays human.</span></div>
+        <span><button class="btn sm sec" id="dlBpSvg">Download SVG</button> <button class="btn sm sec" id="dlBpDrawio">Download .drawio</button> <button class="btn sm sec" onclick="window.print()">Print</button></span>
+        <span class="sub">Your process redrawn as a flow chart with the Microsoft tool that runs each step. Blue = fully automated · teal = a person with automation doing the legwork · grey = stays human. The .drawio file opens in diagrams.net for editing.</span></div>
       <div class="card-b">
-        <div class="bp-flow" id="bpFlow"></div>
+        <div class="map-wrap" id="bpWrap"></div>
+        <div id="bpDetail" style="margin-top:12px;"></div>
         <h3 style="font-size:13.5px;color:var(--blue-dark);margin:14px 0 8px;">Lead time: today vs the blueprint</h3>
         <div class="bars" id="bpBars"></div>
         <p style="font-size:13px;color:var(--ink-2);margin-top:6px;" id="bpSummary"></p>
@@ -247,7 +235,7 @@
           <span><span class="dot" style="background:var(--blue)"></span>Automated — runs itself</span>
           <span><span class="dot" style="background:var(--teal)"></span>Human + assist — person decides, automation does the legwork</span>
           <span><span class="dot" style="background:#757575"></span>Stays human — physical work, digital paperwork</span>
-          <span><span style="text-decoration:line-through;color:var(--ink-3)">10 m</span> = wait removed by automation</span>
+          <span><span style="text-decoration:line-through;color:var(--ink-3)">4 h</span> → <b style="color:var(--blue-dark)">48 m</b> = wait cut by automation</span>
         </div>
       </div>
     </div>
@@ -326,16 +314,104 @@
     return 'generic';
   }
   var AUTO = {
-    intake:     { mode: 'auto',   tool: 'Microsoft Forms + Power Automate', problem: 'Work arrives unstructured and someone re-types it — delays, missing info, no visibility of the queue.', rec: 'Replace manual logging with a Microsoft Form feeding a Power Automate flow that creates a tracked item in a Microsoft List automatically, with required fields so requests arrive complete.', effort: 'Small' },
-    approval:   { mode: 'assist', tool: 'Teams Approvals', problem: 'Items wait for a person to review or sign off and nothing chases the approver.', rec: 'Route each item through Approvals in Microsoft Teams via Power Automate: one-click approve on the phone, automatic reminders, decision logged.', effort: 'Small' },
-    scheduling: { mode: 'auto',   tool: 'Power Automate + Planner', problem: 'Scheduling is done by hand, so work sits unassigned.', rec: 'Auto-create assigned Planner tasks with due dates the moment upstream work completes; surface the plan in a shared Teams calendar.', effort: 'Medium' },
-    admin:      { mode: 'auto',   tool: 'Power Automate + Word templates', problem: 'Paperwork is batched up because it is tedious, delaying completion and hiding errors.', rec: 'Generate documents automatically: a flow fills a Word template from the tracked data and routes it for sign-off — no re-typing, no batching.', effort: 'Medium' },
-    reporting:  { mode: 'auto',   tool: 'Power BI', problem: 'Reports are assembled by hand, so they are late and consume skilled time.', rec: 'Point Power BI at the data so the report builds itself and is always current, shared as a Teams tab.', effort: 'Medium' },
-    execution:  { mode: 'human',  tool: 'Lists mobile checklist', problem: 'The physical work cannot be automated — but its paperwork, status updates and waiting can.', rec: 'Give the team a phone-friendly checklist (Microsoft Lists) to capture completion and photos on the spot; status flows back automatically.', effort: 'Large' },
-    generic:    { mode: 'assist', tool: 'Lists + Power Automate', problem: 'The step is tracked informally, so its queue and status are invisible.', rec: 'Track it as a status column in the shared Microsoft List with automatic notifications on handover.', effort: 'Small' }
+    intake: {
+      mode: 'auto', tool: 'Forms + Power Automate',
+      tools: ['Microsoft Forms', 'Power Automate', 'Microsoft Lists', 'Teams'],
+      problem: 'Work arrives unstructured and someone re-types it — delays, missing info, no visibility of the queue.',
+      rec: 'Replace manual logging with a Microsoft Form feeding a Power Automate flow that creates a tracked item in a Microsoft List automatically, with required fields so requests arrive complete.',
+      how: [
+        'In Microsoft Lists, create a tracker list for this process with a column for each piece of information (status, who, dates, details).',
+        'In Microsoft Forms, build a short form asking only what is needed — mark the must-have fields as Required so nothing arrives incomplete.',
+        'In Power Automate, create a flow: trigger "When a new response is submitted" (Forms) → action "Create item" (your List), mapping each answer to a column.',
+        'Add an action "Post a message in a Teams channel" so the team sees each new item arrive.',
+        'Share the form link (or QR code) with whoever raises work, and retire the old inbox/spreadsheet.'
+      ],
+      effort: 'Small'
+    },
+    approval: {
+      mode: 'assist', tool: 'Teams Approvals',
+      tools: ['Power Automate', 'Approvals in Teams', 'Microsoft Lists'],
+      problem: 'Items wait for a person to review or sign off and nothing chases the approver.',
+      rec: 'Route each item through Approvals in Microsoft Teams via Power Automate: one-click approve on the phone, automatic reminders, decision logged.',
+      how: [
+        'In Power Automate, create a flow: trigger "When an item is created or modified" on your tracker list, filtered to status "Awaiting approval".',
+        'Add the action "Start and wait for an approval" and choose the approver (or approvers).',
+        'Add a condition on the outcome: Approved → update the item status and notify the requester; Rejected → send the comments back.',
+        'Add a reminder branch: if no response within e.g. 4 working hours, re-notify or escalate to a second approver.',
+        'Test with one real item end-to-end before announcing it.'
+      ],
+      effort: 'Small'
+    },
+    scheduling: {
+      mode: 'auto', tool: 'Power Automate + Planner',
+      tools: ['Power Automate', 'Microsoft Planner', 'Outlook / Teams calendar'],
+      problem: 'Scheduling is done by hand, so work sits unassigned.',
+      rec: 'Auto-create assigned Planner tasks with due dates the moment upstream work completes; surface the plan in a shared Teams calendar.',
+      how: [
+        'Create a Planner plan (inside your Teams channel) with buckets matching your workflow stages.',
+        'In Power Automate: trigger "When an item is modified" on the tracker, filtered to status "Ready to schedule".',
+        'Add the action "Create a task" (Planner) with the assignee and due date taken from the item.',
+        'Optionally add the booking to a shared Teams/Outlook calendar in the same flow.',
+        'Add a second flow: when the Planner task is completed, update the tracker status automatically.'
+      ],
+      effort: 'Medium'
+    },
+    admin: {
+      mode: 'auto', tool: 'Power Automate + Word',
+      tools: ['Power Automate', 'Word templates', 'SharePoint', 'Approvals in Teams'],
+      problem: 'Paperwork is batched up because it is tedious, delaying completion and hiding errors.',
+      rec: 'Generate documents automatically: a flow fills a Word template from the tracked data and routes it for sign-off — no re-typing, no batching.',
+      how: [
+        'Create a Word template of the document (invoice cover, completion report, letter) with placeholders for the changing details, and save it in SharePoint.',
+        'In Power Automate: trigger when the tracker item reaches the right status (e.g. "Ready to invoice").',
+        'Add the action "Populate a Microsoft Word template", mapping list columns to the placeholders.',
+        'Save the finished document to SharePoint and route it for sign-off with an Approval action.',
+        'When sign-off completes, the flow updates the item status and notifies the requester — one at a time, no batching.'
+      ],
+      effort: 'Medium'
+    },
+    reporting: {
+      mode: 'auto', tool: 'Power BI',
+      tools: ['Power BI', 'Microsoft Lists', 'Teams'],
+      problem: 'Reports are assembled by hand, so they are late and consume skilled time.',
+      rec: 'Point Power BI at the data so the report builds itself and is always current, shared as a Teams tab.',
+      how: [
+        'In Power BI Desktop: Get Data → SharePoint Online List → connect to your tracker list.',
+        'Build the visuals that matter: items by status, volumes per week, time in each stage.',
+        'Publish to the Power BI service and set a scheduled refresh so it stays current by itself.',
+        'Add the report as a tab in the Teams channel so nobody has to go looking for it.'
+      ],
+      effort: 'Medium'
+    },
+    execution: {
+      mode: 'human', tool: 'Lists mobile checklist',
+      tools: ['Microsoft Lists (mobile app)', 'Power Automate', 'Teams'],
+      problem: 'The physical work cannot be automated — but its paperwork, status updates and waiting can.',
+      rec: 'Give the team a phone-friendly checklist (Microsoft Lists) to capture completion and photos on the spot; status flows back automatically.',
+      how: [
+        'Add the field checks to your tracker (checklist columns, or a linked checklist list) — what must be confirmed on site.',
+        'Field staff install the free Microsoft Lists mobile app and tick items off on their phone, attaching photos as they go.',
+        'In Power Automate: when the checklist is complete, update the item status and notify the office automatically.',
+        'Result: no end-of-day data entry, no chasing for updates — the paperwork happens at the workface.'
+      ],
+      effort: 'Large'
+    },
+    generic: {
+      mode: 'assist', tool: 'Lists + Power Automate',
+      tools: ['Microsoft Lists', 'Power Automate', 'Teams'],
+      problem: 'The step is tracked informally, so its queue and status are invisible.',
+      rec: 'Track it as a status column in the shared Microsoft List with automatic notifications on handover.',
+      how: [
+        'Add this step as a value in the Status choice column of your tracker list.',
+        'In Power Automate: trigger "When an item is modified" → condition: status changed to this step → action: notify the responsible person in Teams.',
+        'Add a date column that stamps when the item entered this step, so the age of the queue is visible to everyone.',
+        'Review the queue weekly in the list view — sorting by that date column shows exactly what is stuck.'
+      ],
+      effort: 'Small'
+    }
   };
   var WAIT_LEFT = { auto: 0.2, assist: 0.5, human: 1 };
-  function autoOf(s) { var k = classify(s.name, s.note); var a = AUTO[k]; return { kind: k, mode: a.mode, tool: a.tool, problem: a.problem, rec: a.rec, effort: a.effort }; }
+  function autoOf(s) { var k = classify(s.name, s.note); var a = AUTO[k]; return { kind: k, mode: a.mode, tool: a.tool, tools: a.tools, how: a.how, problem: a.problem, rec: a.rec, effort: a.effort }; }
   function projectedLead() {
     var t = totals(), projWait = 0;
     state.steps.forEach(function (s) { projWait += s.wait * WAIT_LEFT[autoOf(s).mode]; });
@@ -563,24 +639,117 @@
     var b = this; b.textContent = 'Copied ✓'; setTimeout(function () { b.textContent = 'Copy'; }, 1500);
   });
 
-  // ----- blueprint -----
+  // ----- blueprint (draw.io-style flow chart) -----
+  var bpSelected = null;
+  window.bpSelect = function (id) {
+    bpSelected = bpSelected === id ? null : id;
+    renderBlueprint();
+    var d = document.getElementById('bpDetail');
+    if (bpSelected && d) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  var MODE_FILL = { auto: '#deecf9', assist: '#e4f5f5', human: '#f3f2f1' };
+  var MODE_STROKE = { auto: '#0078d4', assist: '#038387', human: '#757575' };
+  var MODE_DARK = { auto: '#005a9e', assist: '#026668', human: '#4f4f4f' };
+  var MODE_LABEL = { auto: 'AUTOMATED', assist: 'HUMAN + ASSIST', human: 'STAYS HUMAN' };
+
   function renderBlueprint() {
-    var flow = document.getElementById('bpFlow');
-    if (!state.steps.length) { flow.innerHTML = '<div class="empty">Add steps first.</div>'; document.getElementById('bpBars').innerHTML = ''; document.getElementById('bpSummary').textContent = ''; return; }
-    var html = '';
+    var wrapEl = document.getElementById('bpWrap');
+    var detail = document.getElementById('bpDetail');
+    if (!state.steps.length) {
+      wrapEl.innerHTML = '<div class="empty">Add steps on the Collect Data tab first.</div>';
+      detail.innerHTML = ''; document.getElementById('bpBars').innerHTML = ''; document.getElementById('bpSummary').textContent = '';
+      return;
+    }
+
+    var SW = 190, GAP = 120, X0 = 170, ROW = 64, H = 280;
+    var width = Math.max(900, X0 + state.steps.length * (SW + GAP) + 60);
+    var p = [];
+    p.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + H + '" width="' + width + '" height="' + H + '" style="font-family:Segoe UI,system-ui,sans-serif" id="bpSvg">');
+    p.push('<rect width="' + width + '" height="' + H + '" fill="#faf9f8"/>');
+    p.push('<text x="18" y="26" font-size="14" font-weight="700" fill="#0a2e4d">' + esc(state.name || 'Process') +
+      ' <tspan font-size="11" font-weight="500" fill="#0078d4">FUTURE STATE — AUTOMATION BLUEPRINT</tspan></text>');
+    p.push('<text x="18" y="' + (H - 12) + '" font-size="10" fill="#616161">Click any step for the build instructions and the Microsoft tools needed.</text>');
+    p.push('<defs><marker id="bar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#3b3a39"/></marker></defs>');
+
+    // start pill
+    p.push('<rect x="28" y="' + (ROW + 26) + '" width="92" height="44" rx="22" fill="#eff6fc" stroke="#5b5b5b" stroke-width="1.4"/>');
+    p.push('<text x="74" y="' + (ROW + 53) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#242424">START</text>');
+
+    var prevX = 120;
     state.steps.forEach(function (s, i) {
       var a = autoOf(s);
-      if (i > 0) {
-        var gone = s.wait > 0 && WAIT_LEFT[a.mode] < 1;
-        html += '<div class="bp-link"><div class="ln"></div>' +
-          (s.wait > 0 ? '<span class="bp-wait ' + (gone ? 'gone' : 'stay') + '">' + esc(fmt(s.wait)) + '</span>' : '') + '</div>';
+      var x = X0 + i * (SW + GAP);
+      var midY = ROW + 48;
+      // connector with wait label
+      p.push('<line x1="' + prevX + '" y1="' + midY + '" x2="' + (x - 6) + '" y2="' + midY + '" stroke="#3b3a39" stroke-width="1.7" marker-end="url(#bar)"/>');
+      if (s.wait > 0) {
+        var midX = (prevX + x) / 2;
+        var left = s.wait * WAIT_LEFT[a.mode];
+        if (left < s.wait) {
+          p.push('<text x="' + midX + '" y="' + (midY - 10) + '" text-anchor="middle" font-size="10">' +
+            '<tspan text-decoration="line-through" fill="#8a8a8a">' + esc(fmt(s.wait)) + '</tspan>' +
+            '<tspan fill="#005a9e" font-weight="700"> → ' + esc(fmt(left)) + '</tspan></text>');
+        } else {
+          p.push('<text x="' + midX + '" y="' + (midY - 10) + '" text-anchor="middle" font-size="10" font-weight="600" fill="#d83b01">wait ' + esc(fmt(s.wait)) + '</text>');
+        }
       }
-      var cls = a.mode === 'auto' ? 'bp-auto' : a.mode === 'assist' ? 'bp-assist' : 'bp-human';
-      var modeLabel = a.mode === 'auto' ? 'Automated' : a.mode === 'assist' ? 'Human + assist' : 'Stays human';
-      html += '<div class="bp-card ' + cls + '"><div class="h" title="' + esc(s.name) + '">' + (i + 1) + '. ' + esc(s.name) + '</div>' +
-        '<div class="b"><span class="mode">' + modeLabel + '</span>' + esc(a.tool) + '</div></div>';
+      // step box (clickable)
+      var sel = bpSelected === s.id;
+      p.push('<g onclick="bpSelect(' + s.id + ')" style="cursor:pointer">');
+      p.push('<rect x="' + x + '" y="' + ROW + '" width="' + SW + '" height="96" rx="10" fill="' + MODE_FILL[a.mode] + '" stroke="' + MODE_STROKE[a.mode] + '" stroke-width="' + (sel ? 3 : 1.6) + '"/>');
+      var lines = wrap((i + 1) + '. ' + s.name, 28);
+      lines.forEach(function (ln, li) {
+        p.push('<text x="' + (x + SW / 2) + '" y="' + (ROW + (lines.length === 1 ? 26 : 19 + li * 14)) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0a2e4d">' + esc(ln) + '</text>');
+      });
+      p.push('<text x="' + (x + SW / 2) + '" y="' + (ROW + 54) + '" text-anchor="middle" font-size="8.5" font-weight="700" letter-spacing="0.5" fill="' + MODE_DARK[a.mode] + '">' + MODE_LABEL[a.mode] + '</text>');
+      var toolLines = wrap(a.tool, 30);
+      toolLines.forEach(function (ln, li) {
+        p.push('<text x="' + (x + SW / 2) + '" y="' + (ROW + 70 + li * 12) + '" text-anchor="middle" font-size="9" fill="#616161">' + esc(ln) + '</text>');
+      });
+      p.push('<text x="' + (x + SW - 10) + '" y="' + (ROW + 90) + '" text-anchor="end" font-size="8" fill="#8a8a8a">ⓘ how</text>');
+      p.push('</g>');
+      prevX = x + SW;
     });
-    flow.innerHTML = html;
+
+    // end pill
+    var ex = X0 + state.steps.length * (SW + GAP) - GAP + 36;
+    p.push('<line x1="' + prevX + '" y1="' + (ROW + 48) + '" x2="' + (ex - 6) + '" y2="' + (ROW + 48) + '" stroke="#3b3a39" stroke-width="1.7" marker-end="url(#bar)"/>');
+    p.push('<rect x="' + ex + '" y="' + (ROW + 26) + '" width="108" height="44" rx="22" fill="#dff6dd" stroke="#107c10" stroke-width="1.4"/>');
+    p.push('<text x="' + (ex + 54) + '" y="' + (ROW + 53) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#107c10">CUSTOMER</text>');
+    p.push('</svg>');
+    wrapEl.innerHTML = p.join('');
+
+    // detail panel: selected step's build guide, or the overall toolkit
+    if (bpSelected) {
+      var s2 = state.steps.find(function (z) { return z.id === bpSelected; });
+      if (s2) {
+        var a2 = autoOf(s2);
+        detail.innerHTML =
+          '<div style="border:1px solid ' + MODE_STROKE[a2.mode] + ';border-radius:8px;overflow:hidden">' +
+          '<div style="background:' + MODE_FILL[a2.mode] + ';padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">' +
+          '<b style="font-size:13.5px;color:#0a2e4d">' + esc(s2.name) + '</b>' +
+          '<span style="font-size:10.5px;font-weight:700;color:' + MODE_DARK[a2.mode] + '">' + MODE_LABEL[a2.mode] + ' · EFFORT: ' + a2.effort.toUpperCase() + '</span></div>' +
+          '<div style="padding:14px">' +
+          '<p style="font-size:12.5px;color:var(--ink-2);margin-bottom:8px"><b style="color:var(--ink)">Problem today:</b> ' + esc(a2.problem) + '</p>' +
+          '<p style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px"><b style="color:var(--ink)">The automation:</b> ' + esc(a2.rec) + '</p>' +
+          '<p style="font-size:12px;margin-bottom:10px"><b>Microsoft tools needed:</b> ' + a2.tools.map(function (tl) {
+            return '<span style="display:inline-block;background:var(--blue-50);color:var(--blue-dark);border:1px solid var(--blue-100);border-radius:10px;padding:2px 10px;font-size:11px;font-weight:600;margin:2px 3px 0 0">' + esc(tl) + '</span>';
+          }).join('') + '</p>' +
+          '<b style="font-size:12.5px">How to build it:</b>' +
+          '<ol style="margin:6px 0 0 20px">' + a2.how.map(function (h) { return '<li style="font-size:12.5px;line-height:1.55;margin-bottom:4px">' + esc(h) + '</li>'; }).join('') + '</ol>' +
+          '<button class="btn sm sec" style="margin-top:10px" onclick="bpSelect(' + s2.id + ')">Close</button>' +
+          '</div></div>';
+      }
+    } else {
+      var allTools = [];
+      state.steps.forEach(function (s3) {
+        autoOf(s3).tools.forEach(function (tl) { if (allTools.indexOf(tl) === -1) allTools.push(tl); });
+      });
+      detail.innerHTML = '<div class="note" style="background:var(--blue-50);border-color:var(--blue-100);margin-bottom:0">' +
+        '<b>Microsoft toolkit for this blueprint:</b> ' + allTools.map(esc).join(' · ') +
+        '<br/><span style="color:var(--ink-3)">Click any step in the chart above for its step-by-step build instructions.</span></div>';
+    }
 
     var t = totals(), proj = projectedLead();
     var scale = t.lead > 0 ? 100 / t.lead : 0;
@@ -591,6 +760,46 @@
     document.getElementById('bpSummary').innerHTML = 'Indicative reduction of <b style="color:var(--blue-dark)">' + savePct.toFixed(0) +
       '%</b> in end-to-end time — the hands-on work stays the same, the waiting shrinks because hand-offs happen instantly. Validate with a pilot before promising it to anyone.';
   }
+
+  document.getElementById('dlBpSvg').addEventListener('click', function () {
+    var svg = document.getElementById('bpSvg'); if (!svg) return;
+    var blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = (state.name || 'automation-blueprint') + '-blueprint.svg'; a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById('dlBpDrawio').addEventListener('click', function () {
+    if (!state.steps.length) return;
+    function xml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    var cells = [], id = 1;
+    function node(label, x, y, w, h, style) {
+      var cid = 'bp' + (id++);
+      cells.push('<mxCell id="' + cid + '" value="' + xml(label) + '" style="' + style + '" vertex="1" parent="1"><mxGeometry x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" as="geometry"/></mxCell>');
+      return cid;
+    }
+    function edge(from, to, label) {
+      cells.push('<mxCell id="bp' + (id++) + '" value="' + xml(label || '') + '" style="endArrow=block;html=1;fontSize=10;" edge="1" parent="1" source="' + from + '" target="' + to + '"><mxGeometry relative="1" as="geometry"/></mxCell>');
+    }
+    var FILL = { auto: '#deecf9', assist: '#e4f5f5', human: '#f3f2f1' };
+    var STROKE = { auto: '#0078d4', assist: '#038387', human: '#757575' };
+    var prev = node('START', 20, 80, 90, 44, 'rounded=1;arcSize=50;fillColor=#eff6fc;strokeColor=#5b5b5b;html=1;');
+    state.steps.forEach(function (s, i) {
+      var a = autoOf(s);
+      var label = (i + 1) + '. ' + s.name + '\n[' + (a.mode === 'auto' ? 'Automated' : a.mode === 'assist' ? 'Human + assist' : 'Stays human') + ']\n' + a.tool;
+      var n = node(label, 170 + i * 240, 60, 190, 90, 'rounded=1;whiteSpace=wrap;html=1;fillColor=' + FILL[a.mode] + ';strokeColor=' + STROKE[a.mode] + ';verticalAlign=middle;fontSize=11;');
+      var left = s.wait * WAIT_LEFT[a.mode];
+      edge(prev, n, s.wait > 0 ? (left < s.wait ? 'wait ' + fmt(s.wait) + ' → ' + fmt(left) : 'wait ' + fmt(s.wait)) : '');
+      prev = n;
+    });
+    var end = node('CUSTOMER', 170 + state.steps.length * 240, 80, 110, 44, 'rounded=1;arcSize=50;fillColor=#dff6dd;strokeColor=#107c10;html=1;');
+    edge(prev, end, '');
+    var doc = '<?xml version="1.0" encoding="UTF-8"?>\n<mxfile host="app.diagrams.net"><diagram name="' + xml((state.name || 'Process') + ' - Automation Blueprint') + '">' +
+      '<mxGraphModel dx="1000" dy="600" grid="1" gridSize="10" page="1" pageWidth="1600" pageHeight="900"><root><mxCell id="0"/><mxCell id="1" parent="0"/>' +
+      cells.join('') + '</root></mxGraphModel></diagram></mxfile>';
+    var blob = new Blob([doc], { type: 'application/xml' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = (state.name || 'automation-blueprint') + '-blueprint.drawio'; a.click(); URL.revokeObjectURL(a.href);
+  });
 
   // ----- scope of works -----
   function renderPainOptions() {
