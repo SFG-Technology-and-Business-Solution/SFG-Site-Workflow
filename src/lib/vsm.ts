@@ -80,8 +80,9 @@ export function calcMetrics(vs: ValueStream): VsmMetrics {
     const taktSec = demandPerDay > 0 ? availableSecPerDay / demandPerDay : 0;
 
     const stepMetrics: StepMetrics[] = vs.steps.map((step) => {
-        const uptime = Math.min(100, Math.max(1, step.uptimePct)) / 100;
-        const fpYield = Math.min(100, Math.max(1, step.yieldPct)) / 100;
+        // 0% uptime/yield means "not measured", not "never works" - treat as 100
+        const uptime = (step.uptimePct > 0 ? Math.min(100, step.uptimePct) : 100) / 100;
+        const fpYield = (step.yieldPct > 0 ? Math.min(100, step.yieldPct) : 100) / 100;
         const effectiveCycleSec = step.cycleTimeSec / (uptime * fpYield);
         const waitDays = demandPerDay > 0 ? step.inventoryBefore / demandPerDay : 0;
         return { step, effectiveCycleSec, waitDays, isBottleneck: false, overTakt: taktSec > 0 && effectiveCycleSec > taktSec };

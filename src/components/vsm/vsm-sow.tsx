@@ -9,6 +9,7 @@ import { Card, CardHeader, CardBody, Button } from '../ui';
 import { ValueStream, VsmMetrics, downloadFile } from '@/lib/vsm';
 import { SowAnswers, SowDocument, emptyAnswers, generateSow, sowToHtml, sowToText } from '@/lib/vsm-sow';
 import { aiAvailable, aiPolishSow } from '@/lib/vsm-ai';
+import { VsmBlueprint } from './vsm-blueprint';
 
 interface VsmSowProps {
     stream: ValueStream;
@@ -81,6 +82,9 @@ export function VsmSow({ stream, metrics }: VsmSowProps) {
 
     return (
         <div className="space-y-6">
+            {/* The future-state picture */}
+            <VsmBlueprint stream={stream} metrics={metrics} />
+
             {/* Questionnaire */}
             <Card>
                 <CardHeader>
