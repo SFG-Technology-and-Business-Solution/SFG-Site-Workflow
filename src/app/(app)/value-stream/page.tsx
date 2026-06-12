@@ -19,6 +19,7 @@ import { VsmCanvas } from '@/components/vsm/vsm-canvas';
 import { VsmActionPlan } from '@/components/vsm/vsm-action-plan';
 import { VsmSow } from '@/components/vsm/vsm-sow';
 import { VsmDescribe } from '@/components/vsm/vsm-describe';
+import { VsmInterview } from '@/components/vsm/vsm-interview';
 import { VsmLibrary } from '@/components/vsm/vsm-library';
 import { VsmBuddyLogo } from '@/components/vsm/vsm-buddy-logo';
 import {
@@ -40,7 +41,7 @@ const TABS: { id: Tab; label: string; icon: typeof BookOpen; hint: string }[] = 
     { id: 'data', label: '2 · Collect Data', icon: ClipboardList, hint: 'Enter what you measured' },
     { id: 'map', label: '3 · Map', icon: GitBranch, hint: 'The drawn value stream' },
     { id: 'plan', label: '4 · Action Plan', icon: ListChecks, hint: 'Step-by-step improvements' },
-    { id: 'sow', label: '5 · Scope of Works', icon: FileText, hint: 'Microsoft automation proposal' },
+    { id: 'sow', label: '5 · Automation Blueprint', icon: FileText, hint: 'Future-state map + Scope of Works' },
 ];
 
 export default function ValueStreamPage() {
@@ -216,6 +217,7 @@ export default function ValueStreamPage() {
                     {tab === 'data' && (
                         <div className="space-y-4">
                             <VsmDescribe stream={active} onChange={updateActive} />
+                            <VsmInterview stream={active} onChange={updateActive} />
                             <VsmDataForm stream={active} metrics={metrics} onChange={updateActive} />
                             {hasSteps && (
                                 <div className="flex justify-end">

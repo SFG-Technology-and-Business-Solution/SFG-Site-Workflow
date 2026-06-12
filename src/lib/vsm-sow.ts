@@ -48,9 +48,9 @@ export interface SowDocument {
 // STEP CLASSIFIER
 // ============================================
 
-type StepKind = 'intake' | 'approval' | 'scheduling' | 'admin' | 'reporting' | 'execution' | 'generic';
+export type StepKind = 'intake' | 'approval' | 'scheduling' | 'admin' | 'reporting' | 'execution' | 'generic';
 
-function classify(name: string, notes: string): StepKind {
+export function classify(name: string, notes: string): StepKind {
     const t = `${name} ${notes}`.toLowerCase();
     if (/receive|log|intake|request|enquir|email|register|capture|order/.test(t)) return 'intake';
     if (/approv|review|assess|check|inspect|sign|authoris|authorize|verify|quote/.test(t)) return 'approval';
@@ -105,6 +105,50 @@ const KIND_RULES: Record<StepKind, { problem: string; rec: string; tools: string
         effort: 'Small',
     },
 };
+
+// ============================================
+// AUTOMATION BLUEPRINT (future-state view)
+// ============================================
+
+export type AutomationMode = 'automated' | 'assisted' | 'human';
+
+export interface StepAutomation {
+    kind: StepKind;
+    mode: AutomationMode;
+    toolLabel: string;     // short badge text for the blueprint diagram
+    waitFactor: number;    // share of today's queue time that remains after automation
+}
+
+const MODE_BY_KIND: Record<StepKind, { mode: AutomationMode; toolLabel: string }> = {
+    intake: { mode: 'automated', toolLabel: 'Forms + Power Automate' },
+    approval: { mode: 'assisted', toolLabel: 'Teams Approvals' },
+    scheduling: { mode: 'automated', toolLabel: 'Power Automate + Planner' },
+    admin: { mode: 'automated', toolLabel: 'Power Automate + Word' },
+    reporting: { mode: 'automated', toolLabel: 'Power BI' },
+    execution: { mode: 'human', toolLabel: 'Lists mobile checklist' },
+    generic: { mode: 'assisted', toolLabel: 'Lists + Power Automate' },
+};
+
+// How much of the queue in front of a step survives once hand-offs into it
+// are automated: instant routing (automated), prompted humans (assisted),
+// unchanged physical work (human).
+const WAIT_FACTOR: Record<AutomationMode, number> = { automated: 0.2, assisted: 0.5, human: 1 };
+
+export function stepAutomation(name: string, notes: string): StepAutomation {
+    const kind = classify(name, notes);
+    const { mode, toolLabel } = MODE_BY_KIND[kind];
+    return { kind, mode, toolLabel, waitFactor: WAIT_FACTOR[mode] };
+}
+
+/** Projected lead time (days) if the blueprint is implemented. Work time is unchanged - only waiting shrinks. */
+export function projectedLeadTimeDays(vs: ValueStream, m: VsmMetrics): number {
+    const projectedWait = vs.steps.reduce((sum, s, i) => {
+        const sm = m.stepMetrics[i];
+        if (!sm) return sum;
+        return sum + sm.waitDays * stepAutomation(s.name, s.notes || '').waitFactor;
+    }, 0);
+    return m.leadTimeDays - m.totalWaitDays + projectedWait;
+}
 
 // ============================================
 // GENERATOR
@@ -174,10 +218,10 @@ export function generateSow(vs: ValueStream, m: VsmMetrics, a: SowAnswers): SowD
             ? `Start with "${pilotStep.name}"${painStep ? ' (nominated by the team as the most painful step)' : maxQueue && maxQueue.waitDays > 0 && pilotStep.id === maxQueue.step.id ? ' (it has the largest queue)' : ''}. ${pilotRec ? pilotRec.recommendation : ''} Run the pilot for 2-4 weeks, measure the queue and lead time before and after, then extend the same pattern to the neighbouring steps.`
             : 'Add process steps to the map to receive a pilot recommendation.',
         benefits: [
+            `Projected lead time: ${fmtDays(projectedLeadTimeDays(vs, m))} per unit, down from ${fmtDays(m.leadTimeDays)} today - the work stays the same, the waiting between steps shrinks (see the Automation Blueprint).`,
             hoursSavedPerWeek > 0.5
                 ? `Indicative time recovery: roughly ${hoursSavedPerWeek.toFixed(0)} staff-hours per week (assumes automation halves the manual handling on administrative steps at ${a.runsPerWeek} runs/week). Validate during the pilot.`
                 : 'Time recovery to be quantified during the pilot.',
-            'Faster lead time: automated hand-offs remove queue time, which the map shows is the bulk of the end-to-end delay.',
             'Fewer errors: required fields and validation stop incomplete work entering the process.',
             'Visibility: a live view of every item’s status in Teams replaces chasing and status meetings.',
         ],

@@ -21,16 +21,52 @@ interface VsmCanvasProps {
     onPositionsChange: (positions: Record<string, { x: number; y: number }>) => void;
 }
 
-const STEP_W = 150;
-const STEP_GAP = 70;
+const STEP_W = 160;
+const STEP_GAP = 80;
 const DATA_H = 78;
-const PROC_H = 46;
+const PROC_H = 50;
 const ROW_Y = 290;
 const TOP_Y = 50;
+
+// Fluent palette
+const INK = '#242424';
+const INK_2 = '#616161';
+const INK_3 = '#8a8a8a';
+const BLUE = '#0078d4';
+const NAVY = '#0a2e4d';
+const RED = '#d13438';
+const GREEN = '#107c10';
 
 interface NodePos {
     x: number;
     y: number;
+}
+
+/** Word-wrap a label into at most maxLines lines of ~maxChars, ellipsising the rest. */
+function wrapLabel(text: string, maxChars: number, maxLines: number): string[] {
+    const words = text.trim().split(/\s+/);
+    const lines: string[] = [];
+    let line = '';
+    for (const word of words) {
+        if ((line + ' ' + word).trim().length <= maxChars) {
+            line = (line + ' ' + word).trim();
+        } else {
+            if (line) lines.push(line);
+            line = word;
+            if (lines.length === maxLines) break;
+        }
+    }
+    if (lines.length < maxLines && line) lines.push(line);
+    if (lines.length > maxLines || (lines.length === maxLines && line && !lines.includes(line))) {
+        lines.length = maxLines;
+        const last = lines[maxLines - 1];
+        lines[maxLines - 1] = last.length > maxChars - 1 ? last.slice(0, maxChars - 1) + '…' : last + '…';
+    }
+    return lines.length ? lines : [text.slice(0, maxChars)];
+}
+
+function trunc(text: string, max: number): string {
+    return text.length > max ? text.slice(0, max - 1) + '…' : text;
 }
 
 interface FactoryNodeProps {
@@ -44,6 +80,7 @@ interface FactoryNodeProps {
 // Standard VSM outside-source symbol (sawtooth factory roof)
 function FactoryNode({ p, label, sub, selected, onPointerDown }: FactoryNodeProps) {
     const w = 140;
+    const lines = wrapLabel(label, 20, 2);
     return (
         <g
             transform={`translate(${p.x},${p.y})`}
@@ -51,18 +88,21 @@ function FactoryNode({ p, label, sub, selected, onPointerDown }: FactoryNodeProp
             className="cursor-grab"
             style={{ touchAction: 'none' }}
         >
+            <title>{label}</title>
             <path
-                d={`M0,20 L${w / 3},6 L${w / 3},20 L${(2 * w) / 3},6 L${(2 * w) / 3},20 L${w},6 L${w},58 L0,58 Z`}
-                fill="#eff6ff"
-                stroke={selected ? '#2563eb' : '#475569'}
+                d={`M0,20 L${w / 3},6 L${w / 3},20 L${(2 * w) / 3},6 L${(2 * w) / 3},20 L${w},6 L${w},62 L0,62 Z`}
+                fill="#eff6fc"
+                stroke={selected ? BLUE : '#5b5b5b'}
                 strokeWidth={selected ? 2.5 : 1.5}
             />
-            <text x={w / 2} y={38} textAnchor="middle" fontSize="12" fontWeight={600} fill="#1e293b">
-                {label}
-            </text>
+            {lines.map((ln, i) => (
+                <text key={i} x={w / 2} y={lines.length === 1 ? 38 : 33 + i * 12} textAnchor="middle" fontSize={lines.length === 1 ? 12 : 10.5} fontWeight={600} fill={INK}>
+                    {ln}
+                </text>
+            ))}
             {sub && (
-                <text x={w / 2} y={52} textAnchor="middle" fontSize="9" fill="#64748b">
-                    {sub}
+                <text x={w / 2} y={56} textAnchor="middle" fontSize="9" fill={INK_2}>
+                    {trunc(sub, 26)}
                 </text>
             )}
         </g>
@@ -179,54 +219,78 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
                 <path
                     d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
                     fill="none"
-                    stroke="#64748b"
-                    strokeWidth={1.3}
+                    stroke={INK_3}
+                    strokeWidth={1.2}
                     strokeDasharray="6 4"
                     markerEnd="url(#arrow-info)"
                 />
                 {label && (
-                    <text x={mx} y={my + 12} textAnchor="middle" fontSize="9" fill="#64748b">
-                        {label}
+                    <text x={mx} y={my + 12} textAnchor="middle" fontSize="9" fill={INK_2}>
+                        <title>{label}</title>
+                        {trunc(label, 44)}
                     </text>
                 )}
             </g>
         );
     };
 
-    // Timeline ladder geometry: order steps by current x so dragging keeps the ladder sane
+    // Steps ordered by current x so dragging keeps flow & ladder sane
     const orderedSteps = [...steps].sort((a, b) => pos(a.id).x - pos(b.id).x);
+
+    // Schedule rail: one clean dashed line from Production Control across the
+    // step row with a short drop to each step (replaces the n-arrow spider web)
+    const railY = ROW_Y - 34;
+    const railNodes: React.ReactNode[] = [];
+    if (n > 0) {
+        const xs = orderedSteps.map((s) => pos(s.id).x + STEP_W / 2);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const cx = controlP.x + 110;
+        const cy = controlP.y + 56;
+        railNodes.push(
+            <g key="rail" stroke={INK_3} strokeWidth={1.2} strokeDasharray="5 4" fill="none">
+                <path d={`M${cx},${cy} L${Math.max(minX, Math.min(maxX, cx))},${railY}`} />
+                {n > 1 && <line x1={minX} y1={railY} x2={maxX} y2={railY} />}
+                {xs.map((x, i) => (
+                    <line key={i} x1={x} y1={railY} x2={x} y2={ROW_Y - 6} markerEnd="url(#arrow-info)" />
+                ))}
+            </g>,
+            <text key="rail-label" x={(minX + maxX) / 2} y={railY - 6} textAnchor="middle" fontSize="9" fill={INK_2}>
+                {trunc(stream.scheduleMethod || 'Schedule', 40)}
+            </text>
+        );
+    }
+
+    // Timeline ladder anchored to each step's actual x position
     const ladderY = 480;
-    const ladderSegW = Math.max(60, (width - 220) / Math.max(1, n * 2));
-    let ladderX = 110;
     const ladderSegs: React.ReactNode[] = [];
+    let ladderEndX = 110;
     orderedSteps.forEach((s, i) => {
         const sm = metrics.stepMetrics.find((m) => m.step.id === s.id)!;
+        const px = pos(s.id).x;
+        const waitStart = i === 0 ? Math.max(60, px - 70) : pos(orderedSteps[i - 1].id).x + STEP_W;
         // wait segment (upper rail = non-value-added)
         ladderSegs.push(
             <g key={`w-${s.id}`}>
-                <path
-                    d={`M${ladderX},${ladderY - 22} H${ladderX + ladderSegW} V${ladderY}`}
-                    fill="none" stroke="#dc2626" strokeWidth={1.6}
-                />
-                <text x={ladderX + ladderSegW / 2} y={ladderY - 28} textAnchor="middle" fontSize="10" fill="#dc2626" fontWeight={600}>
+                <path d={`M${waitStart},${ladderY - 22} H${px} V${ladderY}`} fill="none" stroke={RED} strokeWidth={1.6} />
+                <text x={(waitStart + px) / 2} y={ladderY - 28} textAnchor="middle" fontSize="10" fill={RED} fontWeight={600}>
                     {fmtDays(sm.waitDays)}
                 </text>
             </g>
         );
-        ladderX += ladderSegW;
-        // cycle segment (lower rail = value-added)
+        // work segment (lower rail = value-added)
         ladderSegs.push(
             <g key={`c-${s.id}`}>
                 <path
-                    d={`M${ladderX},${ladderY} H${ladderX + ladderSegW} ${i < orderedSteps.length - 1 ? `V${ladderY - 22}` : ''}`}
-                    fill="none" stroke="#16a34a" strokeWidth={1.6}
+                    d={`M${px},${ladderY} H${px + STEP_W} ${i < orderedSteps.length - 1 ? `V${ladderY - 22}` : ''}`}
+                    fill="none" stroke={GREEN} strokeWidth={1.6}
                 />
-                <text x={ladderX + ladderSegW / 2} y={ladderY + 16} textAnchor="middle" fontSize="10" fill="#16a34a" fontWeight={600}>
+                <text x={px + STEP_W / 2} y={ladderY + 16} textAnchor="middle" fontSize="10" fill={GREEN} fontWeight={600}>
                     {fmtSeconds(s.cycleTimeSec)}
                 </text>
             </g>
         );
-        ladderX += ladderSegW;
+        ladderEndX = px + STEP_W;
     });
 
     return (
@@ -256,47 +320,46 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
                     onPointerMove={onMove}
                     onPointerUp={endDrag}
                     onPointerLeave={endDrag}
-                    style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif', userSelect: 'none' }}
+                    style={{ fontFamily: '"Segoe UI", ui-sans-serif, system-ui, sans-serif', userSelect: 'none' }}
                 >
                     <defs>
                         <marker id="arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-                            <path d="M0,0 L10,5 L0,10 Z" fill="#334155" />
+                            <path d="M0,0 L10,5 L0,10 Z" fill="#3b3a39" />
                         </marker>
                         <marker id="arrow-info" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                            <path d="M0,0 L10,5 L0,10 Z" fill="#64748b" />
+                            <path d="M0,0 L10,5 L0,10 Z" fill={INK_3} />
                         </marker>
                     </defs>
 
-                    <rect width={width} height={height} fill="#fafafa" />
-                    <text x={20} y={26} fontSize="15" fontWeight={700} fill="#0f172a">
+                    <rect width={width} height={height} fill="#faf9f8" />
+                    <text x={20} y={26} fontSize="15" fontWeight={700} fill={NAVY}>
                         {stream.name || 'Value Stream Map'}
                         {stream.productFamily ? `  -  ${stream.productFamily}` : ''}
-                        <tspan fontSize="11" fontWeight={500} fill={stream.mapType === 'future' ? '#7c3aed' : '#64748b'}>
+                        <tspan fontSize="11" fontWeight={500} fill={stream.mapType === 'future' ? BLUE : INK_2}>
                             {'   '}{stream.mapType === 'future' ? 'FUTURE STATE' : 'CURRENT STATE'}
                             {stream.client ? `  ·  ${stream.client}` : ''}
                         </tspan>
                     </text>
-                    <text x={width - 16} y={height - 12} textAnchor="end" fontSize="10" fill="#94a3b8">
+                    <text x={width - 16} y={height - 12} textAnchor="end" fontSize="10" fill={INK_3}>
                         Made with VSM Buddy · AI² Solutions
                     </text>
 
                     {/* Information flow (dashed) */}
                     {infoArrow(customerP.x + 10, customerP.y + 30, controlP.x + 220, controlP.y + 28, stream.customerOrderMethod || 'Orders / forecast', 'cust-pc')}
                     {infoArrow(controlP.x, controlP.y + 28, supplierP.x + 130, supplierP.y + 30, stream.supplierOrderMethod || 'Orders', 'pc-sup')}
-                    {steps.map((s) => {
-                        const sp = pos(s.id);
-                        return infoArrow(controlP.x + 110, controlP.y + 56, sp.x + STEP_W / 2, sp.y - 4, '', `pc-${s.id}`);
-                    })}
+
+                    {/* Schedule rail to the step row */}
+                    {railNodes}
 
                     {/* Material flow arrows: supplier -> steps (in x order) -> customer */}
                     {(() => {
                         const chain: { x: number; y: number }[] = [
-                            { x: supplierP.x + 70, y: supplierP.y + 58 },
+                            { x: supplierP.x + 70, y: supplierP.y + 62 },
                             ...orderedSteps.map((s) => {
                                 const p = pos(s.id);
                                 return { x: p.x + STEP_W / 2, y: p.y + (PROC_H + DATA_H) / 2 };
                             }),
-                            { x: customerP.x + 70, y: customerP.y + 58 },
+                            { x: customerP.x + 70, y: customerP.y + 62 },
                         ];
                         return chain.slice(0, -1).map((a, i) => {
                             // start/end at box edges rather than centres
@@ -311,7 +374,7 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
                                     y1={a.y}
                                     x2={x2}
                                     y2={b.y}
-                                    stroke="#334155"
+                                    stroke="#3b3a39"
                                     strokeWidth={1.8}
                                     markerEnd="url(#arrow-flow)"
                                 />
@@ -342,16 +405,29 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
                         className="cursor-grab"
                         style={{ touchAction: 'none' }}
                     >
-                        <rect width={220} height={56} fill="#f8fafc" stroke={selected === 'control' ? '#2563eb' : '#475569'} strokeWidth={selected === 'control' ? 2.5 : 1.5} />
-                        <text x={110} y={22} textAnchor="middle" fontSize="12" fontWeight={600} fill="#1e293b">Production Control</text>
-                        <text x={110} y={40} textAnchor="middle" fontSize="9" fill="#64748b">{stream.scheduleMethod || 'Scheduling'}</text>
+                        <rect width={220} height={56} fill="#ffffff" stroke={selected === 'control' ? BLUE : '#5b5b5b'} strokeWidth={selected === 'control' ? 2.5 : 1.5} />
+                        <text x={110} y={22} textAnchor="middle" fontSize="12" fontWeight={600} fill={INK}>Production Control</text>
+                        <text x={110} y={40} textAnchor="middle" fontSize="9" fill={INK_2}>
+                            <title>{stream.scheduleMethod || 'Scheduling'}</title>
+                            {trunc(stream.scheduleMethod || 'Scheduling', 38)}
+                        </text>
                     </g>
 
                     {/* Process steps with data boxes, inventory triangles & kaizen bursts */}
-                    {steps.map((s) => {
+                    {steps.map((s, idx) => {
                         const sm = metrics.stepMetrics.find((m) => m.step.id === s.id)!;
                         const p = pos(s.id);
                         const isSel = selected === s.id;
+                        const nameLines = wrapLabel(s.name || `Step ${idx + 1}`, 24, 2);
+                        // only print data rows that carry real information
+                        const dataRows = [
+                            `C/T: ${s.cycleTimeSec > 0 ? fmtSeconds(s.cycleTimeSec) : '—'}`,
+                            ...(s.changeoverSec > 0 ? [`C/O: ${fmtSeconds(s.changeoverSec)}`] : []),
+                            ...((s.uptimePct > 0 && s.uptimePct < 100) || (s.yieldPct > 0 && s.yieldPct < 100)
+                                ? [`Uptime: ${s.uptimePct || 100}%  Yield: ${s.yieldPct || 100}%`]
+                                : []),
+                            ...(s.batchSize > 1 ? [`Batch: ${s.batchSize}`] : []),
+                        ];
                         return (
                             <g
                                 key={s.id}
@@ -363,30 +439,38 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
                                 {/* inventory triangle before the step */}
                                 {s.inventoryBefore > 0 && (
                                     <g transform={`translate(${-52},${(PROC_H + DATA_H) / 2 - 22})`}>
-                                        <path d="M0,40 L20,4 L40,40 Z" fill="#fef9c3" stroke="#ca8a04" strokeWidth={1.5} />
-                                        <text x={20} y={32} textAnchor="middle" fontSize="9" fontWeight={700} fill="#854d0e">{s.inventoryBefore}</text>
-                                        <text x={20} y={54} textAnchor="middle" fontSize="9" fill="#854d0e">{fmtDays(sm.waitDays)}</text>
+                                        <path d="M0,40 L20,4 L40,40 Z" fill="#fff8e1" stroke="#c19c00" strokeWidth={1.5} />
+                                        <text x={20} y={32} textAnchor="middle" fontSize="9" fontWeight={700} fill="#7a6400">{s.inventoryBefore}</text>
+                                        <text x={20} y={54} textAnchor="middle" fontSize="9" fill="#7a6400">{fmtDays(sm.waitDays)}</text>
                                     </g>
                                 )}
 
                                 {/* process box */}
-                                <rect width={STEP_W} height={PROC_H} fill="#ffffff" stroke={isSel ? '#2563eb' : '#334155'} strokeWidth={isSel ? 2.5 : 1.5} />
-                                <text x={STEP_W / 2} y={20} textAnchor="middle" fontSize="11.5" fontWeight={700} fill="#0f172a">
-                                    {s.name || 'Process'}
-                                </text>
-                                <text x={STEP_W / 2} y={36} textAnchor="middle" fontSize="9" fill="#64748b">
-                                    {s.operators} operator{s.operators === 1 ? '' : 's'}
-                                </text>
+                                <rect width={STEP_W} height={PROC_H} fill="#ffffff" stroke={isSel ? BLUE : '#3b3a39'} strokeWidth={isSel ? 2.5 : 1.5} />
+                                <title>{s.name}</title>
+                                {nameLines.map((ln, li) => (
+                                    <text
+                                        key={li}
+                                        x={STEP_W / 2}
+                                        y={nameLines.length === 1 ? 20 : 16 + li * 13}
+                                        textAnchor="middle"
+                                        fontSize={nameLines.length === 1 ? 11.5 : 10}
+                                        fontWeight={700}
+                                        fill={NAVY}
+                                    >
+                                        {ln}
+                                    </text>
+                                ))}
+                                {s.operators > 0 && (
+                                    <text x={STEP_W / 2} y={PROC_H - 7} textAnchor="middle" fontSize="9" fill={INK_2}>
+                                        {s.operators} {s.operators === 1 ? 'person' : 'people'}
+                                    </text>
+                                )}
 
                                 {/* data box */}
-                                <rect y={PROC_H} width={STEP_W} height={DATA_H} fill="#f8fafc" stroke="#94a3b8" strokeWidth={1} />
-                                {[
-                                    `C/T: ${fmtSeconds(s.cycleTimeSec)}`,
-                                    `C/O: ${fmtSeconds(s.changeoverSec)}`,
-                                    `Uptime: ${s.uptimePct}%  Yield: ${s.yieldPct}%`,
-                                    `Batch: ${s.batchSize}`,
-                                ].map((line, li) => (
-                                    <text key={li} x={8} y={PROC_H + 16 + li * 16} fontSize="9.5" fill="#334155">
+                                <rect y={PROC_H} width={STEP_W} height={DATA_H} fill="#faf9f8" stroke="#a19f9d" strokeWidth={1} />
+                                {dataRows.map((line, li) => (
+                                    <text key={li} x={8} y={PROC_H + 17 + li * 16} fontSize="9.5" fill={INK}>
                                         {line}
                                     </text>
                                 ))}
@@ -396,9 +480,9 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
                                     <g transform={`translate(${STEP_W - 14},-14)`}>
                                         <path
                                             d="M0,-16 L5,-5 L17,-8 L9,1 L18,9 L6,8 L4,20 L-3,9 L-15,13 L-8,2 L-18,-5 L-6,-6 Z"
-                                            fill="#fef2f2" stroke="#dc2626" strokeWidth={1.4}
+                                            fill="#fdf3f4" stroke={RED} strokeWidth={1.4}
                                         />
-                                        <text y={4} textAnchor="middle" fontSize="7.5" fontWeight={700} fill="#dc2626">KAIZEN</text>
+                                        <text y={4} textAnchor="middle" fontSize="7.5" fontWeight={700} fill={RED}>KAIZEN</text>
                                     </g>
                                 )}
                             </g>
@@ -408,14 +492,15 @@ export function VsmCanvas({ stream, metrics, onPositionsChange }: VsmCanvasProps
                     {/* Timeline ladder */}
                     {n > 0 && (
                         <g>
-                            <text x={110} y={ladderY - 46} fontSize="10" fontWeight={600} fill="#dc2626">Waiting (non-value-added)</text>
-                            <text x={110} y={ladderY + 34} fontSize="10" fontWeight={600} fill="#16a34a">Processing (value-added)</text>
+                            <text x={60} y={ladderY - 46} fontSize="10" fontWeight={600} fill={RED}>Waiting (non-value-added)</text>
+                            <text x={60} y={ladderY + 34} fontSize="10" fontWeight={600} fill={GREEN}>Working (value-added)</text>
                             {ladderSegs}
-                            <g transform={`translate(${ladderX + 24},${ladderY - 30})`}>
-                                <rect width={210} height={62} rx={6} fill="#ffffff" stroke="#cbd5e1" />
-                                <text x={10} y={18} fontSize="10" fill="#334155">Lead time: <tspan fontWeight={700}>{fmtDays(metrics.leadTimeDays)}</tspan></text>
-                                <text x={10} y={34} fontSize="10" fill="#334155">Process time: <tspan fontWeight={700}>{fmtSeconds(metrics.totalProcessTimeSec)}</tspan></text>
-                                <text x={10} y={50} fontSize="10" fill="#334155">Cycle efficiency: <tspan fontWeight={700}>{metrics.pcePct.toFixed(1)}%</tspan></text>
+                            <g transform={`translate(${ladderEndX + 28},${ladderY - 30})`}>
+                                <rect width={216} height={66} rx={6} fill="#ffffff" stroke="#d1d1d1" />
+                                <rect width={216} height={4} rx={2} fill={BLUE} />
+                                <text x={10} y={22} fontSize="10" fill={INK}>Lead time: <tspan fontWeight={700}>{fmtDays(metrics.leadTimeDays)}</tspan></text>
+                                <text x={10} y={38} fontSize="10" fill={INK}>Work time: <tspan fontWeight={700}>{fmtSeconds(metrics.totalProcessTimeSec)}</tspan></text>
+                                <text x={10} y={54} fontSize="10" fill={INK}>Efficiency: <tspan fontWeight={700}>{metrics.pcePct.toFixed(1)}%</tspan></text>
                             </g>
                         </g>
                     )}
